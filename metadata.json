@@ -1,0 +1,6 @@
+{
+  "name": "Rosaline",
+  "description": "Track how many days your everyday personal care and household products last from first use until empty.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

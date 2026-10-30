@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">Rosaline</string>
+    <string name="greeting_morning">Good morning</string>
+    <string name="greeting_afternoon">Good afternoon</string>
+    <string name="greeting_evening">Good evening</string>
+    <string name="greeting_night">Good night</string>
+    <string name="app_subtitle">Daily Product Lifespan Tracker</string>
+    <string name="summary_active_label">In Use</string>
+    <string name="summary_finished_label">Finished</string>
+    <string name="summary_avg_days_label">Avg Lifespan</string>
+    <string name="filter_all">All Items</string>
+    <string name="filter_active">In Use</string>
+    <string name="filter_finished">Finished</string>
+    <string name="fab_add_product">Add Product</string>
+    <string name="dialog_add_title">Start Tracking a Product</string>
+    <string name="dialog_add_subtitle">Enter the product name to start its day timer right now.</string>
+    <string name="input_product_name_label">Product Name</string>
+    <string name="input_product_name_placeholder">e.g., Body Wash, Toothpaste</string>
+    <string name="quick_pick_label">Quick ideas</string>
+    <string name="btn_start_timer">Start Timer</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_stop_timer">Stop</string>
+    <string name="btn_restart_product">Start New Bottle</string>
+    <string name="btn_delete_product">Delete item</string>
+    <string name="status_in_use">Running</string>
+    <string name="status_finished">Empty · Stopped</string>
+    <string name="empty_state_title">Track how long your products last</string>
+    <string name="empty_state_body">Tap the + button below when you open a new bottle of body wash, shampoo, or cleanser. Tap Stop when it runs out to see the total days used.</string>
+    <string name="empty_filter_title">No products in this filter</string>
+    <string name="empty_filter_body">Try switching filters or tap + to start tracking a new item.</string>
+    <string name="error_empty_name">Please enter a product name</string>
+    <string name="snackbar_deleted">Removed \"%1$s\"</string>
+    <string name="snackbar_undo">Undo</string>
+    <string name="snackbar_stopped">Stopped \"%1$s\" after %2$d %3$s</string>
+    <string name="snackbar_restarted">Started new timer for \"%1$s\"</string>
+</resources>

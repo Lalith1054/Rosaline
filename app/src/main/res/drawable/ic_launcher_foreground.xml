@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Soft 3D ambient drop shadow under the rose -->
+    <path
+        android:fillColor="#38520008"
+        android:pathData="M54,31 C68,31 79,42 79,56 C79,70 68,81 54,81 C40,81 29,70 29,56 C29,42 40,31 54,31 Z" />
+
+    <!-- Outer Top-Left Sculpted Petal -->
+    <path android:pathData="M54,26 C40,24 28,34 30,48 C31,56 39,62 49,60 C55,58 58,48 54,26 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="32"
+                android:startY="28"
+                android:endX="52"
+                android:endY="58"
+                android:type="linear">
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#F7F8FC" android:offset="0.55" />
+                <item android:color="#D9DDE8" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Outer Top-Right Sculpted Petal -->
+    <path android:pathData="M54,26 C68,24 80,34 78,48 C77,56 69,62 59,60 C53,58 50,48 54,26 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="74"
+                android:startY="28"
+                android:endX="54"
+                android:endY="58"
+                android:type="linear">
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#F2F4FA" android:offset="0.5" />
+                <item android:color="#CFD4E2" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Outer Bottom-Left Cupped Petal -->
+    <path android:pathData="M29,47 C25,59 33,73 46,76 C54,78 60,72 58,63 C56,55 42,49 29,47 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="28"
+                android:startY="48"
+                android:endX="56"
+                android:endY="75"
+                android:type="linear">
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#EDF0F7" android:offset="0.6" />
+                <item android:color="#C8CEDA" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Outer Bottom-Right Cupped Petal -->
+    <path android:pathData="M79,47 C83,59 75,73 62,76 C54,78 48,72 50,63 C52,55 66,49 79,47 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="78"
+                android:startY="48"
+                android:endX="52"
+                android:endY="75"
+                android:type="linear">
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#E9ECF5" android:offset="0.55" />
+                <item android:color="#C2C8D6" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Outer Front-Bottom Velvet Petal (catches top light, shaded base) -->
+    <path android:pathData="M36,64 C42,78 66,78 72,64 C66,56 42,56 36,64 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="56"
+                android:endX="54"
+                android:endY="78"
+                android:type="linear">
+                <item android:color="#CCD2E0" android:offset="0.0" />
+                <item android:color="#F5F7FC" android:offset="0.45" />
+                <item android:color="#FFFFFF" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Mid-Layer Recessed Shadow Bowl for 3D Depth -->
+    <path
+        android:fillColor="#266B000D"
+        android:pathData="M54,35 C65,35 72,43 72,53 C72,63 65,70 54,70 C43,70 36,63 36,53 C36,43 43,35 54,35 Z" />
+
+    <!-- Mid-Layer Left Folding Petal -->
+    <path android:pathData="M54,34 C42,34 35,43 38,54 C40,62 49,66 56,62 C59,59 59,44 54,34 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="37"
+                android:startY="36"
+                android:endX="57"
+                android:endY="62"
+                android:type="linear">
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#F4F6FB" android:offset="0.55" />
+                <item android:color="#CED4E3" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Mid-Layer Right Folding Petal -->
+    <path android:pathData="M54,34 C66,34 73,43 70,54 C68,62 59,66 52,62 C49,59 49,44 54,34 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="70"
+                android:startY="36"
+                android:endX="50"
+                android:endY="62"
+                android:type="linear">
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#EEF1F8" android:offset="0.5" />
+                <item android:color="#C5CCDC" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Mid-Layer Lower Wrapping Petal -->
+    <path android:pathData="M39,54 C43,66 65,66 69,54 C63,49 45,49 39,54 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="49"
+                android:endX="54"
+                android:endY="66"
+                android:type="linear">
+                <item android:color="#C4CBD9" android:offset="0.0" />
+                <item android:color="#F6F8FC" android:offset="0.45" />
+                <item android:color="#FFFFFF" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Inner Rosebud Core Spiral Shadow -->
+    <path
+        android:fillColor="#2E5E000A"
+        android:pathData="M54,41 C60,41 65,45 65,51 C65,57 60,61 54,61 C48,61 43,57 43,51 C43,45 48,41 54,41 Z" />
+
+    <!-- Inner Rosebud Left Swirl -->
+    <path android:pathData="M54,40 C46,40 43,46 45,52 C47,57 53,59 57,55 C60,52 58,44 54,40 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="44"
+                android:startY="41"
+                android:endX="57"
+                android:endY="56"
+                android:type="linear">
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#D6DCEB" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Inner Rosebud Right Swirl -->
+    <path android:pathData="M54,41 C61,41 64,46 62,52 C60,57 54,58 50,54 C48,51 50,45 54,41 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="62"
+                android:startY="42"
+                android:endX="50"
+                android:endY="55"
+                android:type="linear">
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#EAEEF7" android:offset="0.55" />
+                <item android:color="#C8D0E0" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Center Tight Bud Highlight -->
+    <path android:pathData="M49,49 C51,45 57,45 59,49 C57,53 51,53 49,49 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="45"
+                android:endX="54"
+                android:endY="53"
+                android:type="linear">
+                <item android:color="#FFFFFF" android:offset="0.0" />
+                <item android:color="#DCE2F0" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
