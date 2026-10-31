@@ -135,24 +135,13 @@ object UpdateChecker {
                 }
             }
 
-            val effectiveInstalledVersion = if (installedRunNumber.isNotBlank()) {
-                "$installedVersionName.$installedRunNumber"
-            } else {
-                installedVersionName
-            }
-
             val remoteVersionCandidate = tagName.ifEmpty { releaseName }
             val isNewer = isRemoteVersionNewer(
                 remoteVersion = remoteVersionCandidate,
-                installedVersion = effectiveInstalledVersion,
-                hasRunNumberInstalled = installedRunNumber.isNotBlank()
+                installedVersion = installedVersionName
             )
 
-            val installedDisplay = if (installedRunNumber.isNotBlank()) {
-                "v$installedVersionName (build #$installedRunNumber)"
-            } else {
-                "v$installedVersionName"
-            }
+            val installedDisplay = "v$installedVersionName"
 
             val latestDisplay = if (tagName.isNotBlank()) {
                 if (tagName.startsWith("v", ignoreCase = true)) tagName else "v$tagName"
@@ -258,14 +247,11 @@ object UpdateChecker {
     }
 
     /**
-     * Compares remote version tag (e.g. "v1.3", "v1.2.4") against installed version (e.g. "1.2" or "1.2.2").
-     * If installed build does not have a GitHub Actions run number (e.g. "1.2") and the remote tag is "v1.2.<run>",
-     * only treat as newer if the major/minor version is greater (e.g. 1.3 > 1.2) unless installed also tracks run_number.
+     * Compares remote version tag (e.g. "v1.2.1", "v1.3") against installed version (e.g. "1.2", "1.2.1").
      */
     fun isRemoteVersionNewer(
         remoteVersion: String,
-        installedVersion: String,
-        hasRunNumberInstalled: Boolean
+        installedVersion: String
     ): Boolean {
         val remoteParts = extractVersionParts(remoteVersion)
         val installedParts = extractVersionParts(installedVersion)
@@ -273,13 +259,7 @@ object UpdateChecker {
             return remoteVersion.trim() != installedVersion.trim()
         }
 
-        val compareDepth = if (!hasRunNumberInstalled && installedParts.size == 2 && remoteParts.size >= 3) {
-            // Compare major.minor (e.g. 1.2 vs 1.3) when local build has no run_number suffix
-            2
-        } else {
-            max(remoteParts.size, installedParts.size)
-        }
-
+        val compareDepth = max(remoteParts.size, installedParts.size)
         for (i in 0 until compareDepth) {
             val r = remoteParts.getOrElse(i) { 0 }
             val l = installedParts.getOrElse(i) { 0 }
