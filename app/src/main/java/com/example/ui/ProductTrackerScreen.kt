@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -116,6 +117,12 @@ private val QuickProductSuggestions = listOf(
     "Hand Soap"
 )
 
+private enum class ActiveScreenPage {
+    HOME,
+    TIMELINE,
+    SETTINGS
+}
+
 @Composable
 fun ProductTrackerScreen(
     viewModel: ProductTrackerViewModel,
@@ -140,66 +147,80 @@ fun ProductTrackerScreen(
         }
     }
 
-    if (uiState.isTimelineOpen) {
-        TimelineScreen(
-            allProducts = uiState.allProducts,
-            nowMillis = uiState.nowMillis,
-            onBackClick = { viewModel.closeTimeline() },
-            modifier = modifier
-        )
-        return
+    val activePage = when {
+        uiState.isTimelineOpen -> ActiveScreenPage.TIMELINE
+        uiState.isSettingsOpen -> ActiveScreenPage.SETTINGS
+        else -> ActiveScreenPage.HOME
     }
 
-    if (uiState.isSettingsOpen) {
-        SettingsScreen(
-            settings = uiState.userSettings,
-            allProducts = uiState.allProducts,
-            nowMillis = uiState.nowMillis,
-            onBackClick = { viewModel.closeSettings() },
-            onSelectTheme = { viewModel.setSelectedTheme(it) },
-            onToggleDarkMode = { viewModel.setDarkModeEnabled(it) },
-            onToggleCountDayOne = { viewModel.setCountStartDayAsDayOne(it) },
-            onToggleLiveTimer = { viewModel.setShowLiveSubDayTimer(it) },
-            onClearFinished = { viewModel.clearFinishedProducts() },
-            onResetAllData = { viewModel.clearAllProducts() },
-            modifier = modifier
-        )
-        return
-    }
-
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets.safeDrawing,
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
-        },
-        floatingActionButtonPosition = FabPosition.Center,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { viewModel.openAddDialog() },
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 0.dp,
-                    pressedElevation = 0.dp,
-                    focusedElevation = 0.dp,
-                    hoveredElevation = 0.dp
-                ),
-                modifier = Modifier
-                    .size(76.dp)
-                    .minimumInteractiveComponentSize()
-                    .testTag("add_product_fab")
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_ms_rounded_add),
-                    contentDescription = stringResource(R.string.fab_add_product),
-                    modifier = Modifier.size(42.dp)
+    AnimatedContent(
+        targetState = activePage,
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        label = "screen_page_transition"
+    ) { page ->
+        when (page) {
+            ActiveScreenPage.TIMELINE -> {
+                TimelineScreen(
+                    allProducts = uiState.allProducts,
+                    nowMillis = uiState.nowMillis,
+                    onBackClick = { viewModel.closeTimeline() },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-        }
-    ) { innerPadding ->
+
+            ActiveScreenPage.SETTINGS -> {
+                SettingsScreen(
+                    settings = uiState.userSettings,
+                    allProducts = uiState.allProducts,
+                    nowMillis = uiState.nowMillis,
+                    onBackClick = { viewModel.closeSettings() },
+                    onSelectTheme = { viewModel.setSelectedTheme(it) },
+                    onToggleDarkMode = { viewModel.setDarkModeEnabled(it) },
+                    onToggleCountDayOne = { viewModel.setCountStartDayAsDayOne(it) },
+                    onToggleLiveTimer = { viewModel.setShowLiveSubDayTimer(it) },
+                    onClearFinished = { viewModel.clearFinishedProducts() },
+                    onResetAllData = { viewModel.clearAllProducts() },
+                    onUpdateGithubRepo = { viewModel.setGithubRepo(it) },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            ActiveScreenPage.HOME -> {
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    contentWindowInsets = WindowInsets.safeDrawing,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    snackbarHost = {
+                        SnackbarHost(hostState = snackbarHostState)
+                    },
+                    floatingActionButtonPosition = FabPosition.Center,
+                    floatingActionButton = {
+                        FloatingActionButton(
+                            onClick = { viewModel.openAddDialog() },
+                            shape = CircleShape,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            elevation = FloatingActionButtonDefaults.elevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp,
+                                focusedElevation = 0.dp,
+                                hoveredElevation = 0.dp
+                            ),
+                            modifier = Modifier
+                                .size(76.dp)
+                                .minimumInteractiveComponentSize()
+                                .testTag("add_product_fab")
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_ms_rounded_add),
+                                contentDescription = stringResource(R.string.fab_add_product),
+                                modifier = Modifier.size(42.dp)
+                            )
+                        }
+                    }
+                ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -311,6 +332,9 @@ fun ProductTrackerScreen(
                             }
                         )
                     }
+                }
+            }
+        }
                 }
             }
         }

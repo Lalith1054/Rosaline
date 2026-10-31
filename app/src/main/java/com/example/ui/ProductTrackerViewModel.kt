@@ -174,6 +174,14 @@ class ProductTrackerViewModel(
         }
     }
 
+    fun setGithubRepo(repo: String) {
+        if (settingsPreferences != null) {
+            settingsPreferences.setGithubRepo(repo)
+        } else {
+            fallbackSettingsFlow.value = fallbackSettingsFlow.value.copy(githubRepo = repo.trim())
+        }
+    }
+
     fun addProduct(name: String, onAdded: (String) -> Unit = {}) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return

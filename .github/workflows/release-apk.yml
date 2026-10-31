@@ -1,4 +1,4 @@
-name: Build & Release Rosaline APK
+name: Build & Release Rosaline APK (v1.2)
 
 on:
   push:
@@ -54,26 +54,26 @@ jobs:
               -dname "CN=Rosaline,O=Abi,C=IN"
           fi
 
-      - name: Build Signed Release APK
+      - name: Build Signed Release APK v1.2
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
           STORE_PASSWORD: rosaline123
           KEY_PASSWORD: rosaline123
         run: |
           gradle :app:assembleRelease --no-daemon
-          cp app/build/outputs/apk/release/app-release.apk Rosaline.apk
+          cp app/build/outputs/apk/release/app-release.apk Rosaline-v1.2.apk
 
-      - name: Upload Rosaline APK Artifact
+      - name: Upload Rosaline v1.2 APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Rosaline-APK
-          path: Rosaline.apk
+          name: Rosaline-v1.2-APK
+          path: Rosaline-v1.2.apk
 
-      - name: Publish GitHub Release
+      - name: Publish GitHub Release v1.2
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: "Rosaline v1.0.${{ github.run_number }}"
-          body: "Signed installable Android release APK for **Rosaline**."
-          files: Rosaline.apk
+          tag_name: v1.2.${{ github.run_number }}
+          name: "Rosaline v1.2"
+          body: "Signed installable Android release APK for **Rosaline v1.2** (includes Dark Mode, Custom Themes, and Product Timeline)."
+          files: Rosaline-v1.2.apk
           prerelease: false

@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -33,6 +35,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -60,9 +64,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.BuildConfig
 import com.example.R
 import com.example.data.AppThemeOption
 import com.example.data.ProductEntry
+import com.example.data.ReleaseUpdateInfo
+import com.example.data.UpdateCheckResult
+import com.example.data.UpdateChecker
 import com.example.data.UserSettings
 import com.example.ui.theme.ChocolateBackground
 import com.example.ui.theme.MonoBackground
@@ -85,6 +93,7 @@ fun SettingsScreen(
     onToggleLiveTimer: (Boolean) -> Unit,
     onClearFinished: () -> Unit,
     onResetAllData: () -> Unit,
+    onUpdateGithubRepo: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler {
@@ -97,8 +106,36 @@ fun SettingsScreen(
 
     var showClearFinishedDialog by rememberSaveable { mutableStateOf(false) }
     var showResetAllDialog by rememberSaveable { mutableStateOf(false) }
+    var isCheckingUpdates by remember { mutableStateOf(false) }
+    var updateResultInfo by remember { mutableStateOf<ReleaseUpdateInfo?>(null) }
+    var showConfigureRepoDialog by rememberSaveable { mutableStateOf(false) }
+    var repoConfigError by rememberSaveable { mutableStateOf<String?>(null) }
 
     val finishedCount = allProducts.count { !it.isActive }
+
+    fun performUpdateCheck(repoToCheck: String) {
+        if (isCheckingUpdates) return
+        isCheckingUpdates = true
+        repoConfigError = null
+        coroutineScope.launch {
+            val result = UpdateChecker.checkForUpdates(
+                rawRepoInput = repoToCheck,
+                installedVersionName = BuildConfig.VERSION_NAME,
+                installedRunNumber = BuildConfig.GITHUB_RUN_NUMBER
+            )
+            isCheckingUpdates = false
+            when (result) {
+                is UpdateCheckResult.Success -> {
+                    onUpdateGithubRepo(result.resolvedRepo)
+                    updateResultInfo = result.info
+                }
+                is UpdateCheckResult.Error -> {
+                    repoConfigError = result.message
+                    showConfigureRepoDialog = true
+                }
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier
@@ -312,6 +349,69 @@ fun SettingsScreen(
                         title = "ABOUT",
                         modifier = Modifier.padding(top = 28.dp)
                     )
+                    SettingsActionRow(
+                        iconRes = R.drawable.ic_ms_rounded_refresh,
+                        title = "Check for updates",
+                        subtitle = if (isCheckingUpdates) {
+                            "Checking github.com/${settings.githubRepo}/releases for new builds…"
+                        } else {
+                            "Check GitHub Releases (${settings.githubRepo}) for a newer APK build"
+                        },
+                        buttonLabel = if (isCheckingUpdates) "Checking…" else "Check",
+                        enabled = !isCheckingUpdates,
+                        onClick = { performUpdateCheck(settings.githubRepo) },
+                        testTag = "check_updates_button"
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp, start = 36.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            onClick = {
+                                repoConfigError = null
+                                showConfigureRepoDialog = true
+                            },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline),
+                            modifier = Modifier.testTag("set_release_repo_button")
+                        ) {
+                            Text(
+                                text = "Set Release Repo",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            )
+                        }
+                        Surface(
+                            onClick = {
+                                val repoSlug = UpdateChecker.parseRepoInput(settings.githubRepo)
+                                    .ifBlank { "lalith0918/Rosaline" }
+                                val url = "https://github.com/$repoSlug/releases"
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                }
+                            },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline),
+                            modifier = Modifier.testTag("open_releases_page_button")
+                        ) {
+                            Text(
+                                text = "Open Release Page",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                    HorizontalDivider(
+                        thickness = 0.8.dp,
+                        color = MaterialTheme.colorScheme.outline
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -326,8 +426,13 @@ fun SettingsScreen(
                             modifier = Modifier.size(22.dp)
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            val versionLabel = if (BuildConfig.GITHUB_RUN_NUMBER.isNotBlank()) {
+                                "Rosaline · Version ${BuildConfig.VERSION_NAME} (Build #${BuildConfig.GITHUB_RUN_NUMBER})"
+                            } else {
+                                "Rosaline · Version ${BuildConfig.VERSION_NAME}"
+                            }
                             Text(
-                                text = "Rosaline · Version 1.0",
+                                text = versionLabel,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -418,6 +523,45 @@ fun SettingsScreen(
                         duration = SnackbarDuration.Short
                     )
                 }
+            }
+        )
+    }
+
+    updateResultInfo?.let { info ->
+        UpdateResultDialog(
+            info = info,
+            onDismiss = { updateResultInfo = null },
+            onDownloadUpdate = {
+                val targetUrl = info.apkDownloadUrl ?: info.htmlUrl
+                updateResultInfo = null
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)))
+                }
+            },
+            onOpenReleasePage = {
+                val pageUrl = info.htmlUrl
+                updateResultInfo = null
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(pageUrl)))
+                }
+            }
+        )
+    }
+
+    if (showConfigureRepoDialog) {
+        ConfigureRepoDialog(
+            currentRepo = settings.githubRepo,
+            errorMessage = repoConfigError,
+            onDismiss = {
+                showConfigureRepoDialog = false
+                repoConfigError = null
+            },
+            onSaveAndCheck = { newRepo ->
+                val parsed = UpdateChecker.parseRepoInput(newRepo).ifBlank { newRepo.trim() }
+                onUpdateGithubRepo(parsed)
+                showConfigureRepoDialog = false
+                repoConfigError = null
+                performUpdateCheck(parsed)
             }
         )
     }
@@ -775,3 +919,203 @@ private fun buildExportSummary(
     }
     return sb.toString()
 }
+
+@Composable
+private fun UpdateResultDialog(
+    info: ReleaseUpdateInfo,
+    onDismiss: () -> Unit,
+    onDownloadUpdate: () -> Unit,
+    onOpenReleasePage: () -> Unit
+) {
+    val sizeMbText = if (info.apkSizeBytes > 0L) {
+        String.format(Locale.US, "%.1f MB", info.apkSizeBytes / (1024.0 * 1024.0))
+    } else {
+        null
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(12.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Text(
+                text = if (info.isNewerThanInstalled) {
+                    "New Update Available!"
+                } else {
+                    "You're Up to Date"
+                },
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = if (info.isNewerThanInstalled) {
+                        "A newer release (${info.latestVersionDisplay}) is available on your GitHub Release page."
+                    } else {
+                        "You are currently running the latest version (${info.installedVersionDisplay})."
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Text(
+                    text = "Installed: ${info.installedVersionDisplay}\nLatest Release: ${info.releaseName} (${info.latestVersionDisplay})" +
+                        (if (info.apkFileName != null) "\nAPK: ${info.apkFileName}${if (sizeMbText != null) " ($sizeMbText)" else ""}" else ""),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (info.body.isNotBlank()) {
+                    Text(
+                        text = info.body,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDownloadUpdate,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier
+                    .minimumInteractiveComponentSize()
+                    .testTag("download_update_apk_button")
+            ) {
+                Text(
+                    text = if (info.isNewerThanInstalled) {
+                        if (info.apkDownloadUrl != null) "Update Now (APK)" else "Open Release"
+                    } else {
+                        if (info.apkDownloadUrl != null) "Download APK" else "View Release"
+                    },
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (info.apkDownloadUrl != null) {
+                    TextButton(
+                        onClick = onOpenReleasePage,
+                        shape = CircleShape,
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                    ) {
+                        Text(
+                            text = "Release Page",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                TextButton(
+                    onClick = onDismiss,
+                    shape = CircleShape,
+                    modifier = Modifier.minimumInteractiveComponentSize()
+                ) {
+                    Text(
+                        text = "Close",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun ConfigureRepoDialog(
+    currentRepo: String,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    onSaveAndCheck: (String) -> Unit
+) {
+    var repoText by rememberSaveable(currentRepo) { mutableStateOf(currentRepo) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(12.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Text(
+                text = "GitHub Release Repository",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (!errorMessage.isNullOrBlank()) {
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = "Enter your GitHub repository (owner/repo) or paste your GitHub Releases URL to check for new APK builds.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                OutlinedTextField(
+                    value = repoText,
+                    onValueChange = { repoText = it },
+                    label = { Text("GitHub Repo or Release URL") },
+                    placeholder = { Text("lalith0918/Rosaline") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("github_repo_input")
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSaveAndCheck(repoText) },
+                enabled = repoText.isNotBlank(),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier
+                    .minimumInteractiveComponentSize()
+                    .testTag("save_and_check_repo_button")
+            ) {
+                Text(
+                    text = "Save & Check",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                shape = CircleShape,
+                modifier = Modifier.minimumInteractiveComponentSize()
+            ) {
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    )
+}
+

@@ -81,18 +81,22 @@ data class UserSettings(
     val countStartDayAsDayOne: Boolean = false,
     val showLiveSubDayTimer: Boolean = true,
     val selectedTheme: AppThemeOption = AppThemeOption.CLASSIC_WHITE,
-    val darkModeEnabled: Boolean = false
+    val darkModeEnabled: Boolean = false,
+    val githubRepo: String = com.example.BuildConfig.GITHUB_REPOSITORY.ifBlank { "lalith0918/Rosaline" }
 )
 
 class SettingsPreferences(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("rosaline_settings", Context.MODE_PRIVATE)
+
+    private val defaultRepo = com.example.BuildConfig.GITHUB_REPOSITORY.ifBlank { "lalith0918/Rosaline" }
 
     private val _settingsFlow = MutableStateFlow(
         UserSettings(
             countStartDayAsDayOne = prefs.getBoolean(KEY_COUNT_DAY_ONE, false),
             showLiveSubDayTimer = prefs.getBoolean(KEY_SHOW_LIVE_TIMER, true),
             selectedTheme = AppThemeOption.fromName(prefs.getString(KEY_SELECTED_THEME, AppThemeOption.CLASSIC_WHITE.name)),
-            darkModeEnabled = prefs.getBoolean(KEY_DARK_MODE, false)
+            darkModeEnabled = prefs.getBoolean(KEY_DARK_MODE, false),
+            githubRepo = prefs.getString(KEY_GITHUB_REPO, defaultRepo)?.ifBlank { defaultRepo } ?: defaultRepo
         )
     )
     val settingsFlow: StateFlow<UserSettings> = _settingsFlow.asStateFlow()
@@ -123,11 +127,18 @@ class SettingsPreferences(context: Context) {
         _settingsFlow.value = _settingsFlow.value.copy(darkModeEnabled = enabled)
     }
 
+    fun setGithubRepo(repo: String) {
+        val cleaned = repo.trim().ifBlank { defaultRepo }
+        prefs.edit().putString(KEY_GITHUB_REPO, cleaned).apply()
+        _settingsFlow.value = _settingsFlow.value.copy(githubRepo = cleaned)
+    }
+
     companion object {
         private const val KEY_COUNT_DAY_ONE = "count_start_day_as_day_one"
         private const val KEY_SHOW_LIVE_TIMER = "show_live_sub_day_timer"
         private const val KEY_SELECTED_THEME = "selected_theme_option"
         private const val KEY_DARK_MODE = "dark_mode_enabled"
+        private const val KEY_GITHUB_REPO = "github_release_repo"
     }
 }
 

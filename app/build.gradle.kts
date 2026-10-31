@@ -16,8 +16,13 @@ android {
     applicationId = "com.aistudio.lastdrop.xkqpmz"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 2
+    versionName = "1.2"
+
+    val githubRepo = (System.getenv("GITHUB_REPOSITORY") ?: "").replace("\"", "")
+    val githubRunNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "").replace("\"", "")
+    buildConfigField("String", "GITHUB_REPOSITORY", "\"$githubRepo\"")
+    buildConfigField("String", "GITHUB_RUN_NUMBER", "\"$githubRunNumber\"")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
