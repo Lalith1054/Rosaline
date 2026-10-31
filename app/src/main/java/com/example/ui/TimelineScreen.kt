@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +60,7 @@ enum class TimelineEventType(val label: String) {
 data class TimelineEventItem(
     val id: String,
     val productName: String,
+    val productTag: String? = null,
     val timestampMillis: Long,
     val year: Int,
     val type: TimelineEventType
@@ -84,6 +86,8 @@ fun TimelineScreen(
         cal.get(Calendar.YEAR)
     }
 
+    val timelineListState = rememberLazyListState()
+
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -91,59 +95,34 @@ fun TimelineScreen(
         contentWindowInsets = WindowInsets.safeDrawing,
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.TopCenter
-        ) {
+        BlurredStickyHeaderLayout(
+            listState = timelineListState,
+            scaffoldPadding = innerPadding,
+            defaultHeaderHeight = 194.dp,
+            headerContent = { collapseFraction ->
+                CollapsingSubpageHeaderBar(
+                    title = "Timeline",
+                    collapseFraction = collapseFraction,
+                    horizontalPadding = 24.dp,
+                    backButtonTestTag = "timeline_back_button",
+                    headingTestTag = "timeline_heading",
+                    onBackClick = onBackClick,
+                    titleFontFamily = NewsreaderMaxBoldFontFamily
+                )
+            }
+        ) { topContentPadding ->
             LazyColumn(
+                state = timelineListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .widthIn(max = 640.dp),
                 contentPadding = PaddingValues(
                     start = 24.dp,
                     end = 24.dp,
-                    top = 36.dp,
+                    top = topContentPadding + 12.dp,
                     bottom = 72.dp
                 )
             ) {
-                // Header Section: Back button + "Timeline"
-                item(key = "timeline_header") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 24.dp, bottom = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        IconButton(
-                            onClick = onBackClick,
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("timeline_back_button")
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_ms_rounded_arrow_back),
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-
-                        Text(
-                            text = "Timeline",
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontFamily = NewsreaderMaxBoldFontFamily,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 54.sp,
-                                lineHeight = 58.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.testTag("timeline_heading")
-                        )
-                    }
-                }
-
                 if (eventsByYear.isEmpty()) {
                     item(key = "empty_year_header") {
                         Text(
@@ -300,7 +279,11 @@ private fun TimelineEventNode(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = event.productName,
+                    text = if (!event.productTag.isNullOrBlank()) {
+                        "${event.productName} · ${event.productTag}"
+                    } else {
+                        event.productName
+                    },
                     style = TextStyle(
                         fontFamily = LibreFranklinFontFamily,
                         fontWeight = FontWeight.ExtraBold,
@@ -409,6 +392,7 @@ private fun buildTimelineEventsByYear(
             TimelineEventItem(
                 id = "${product.id}_start",
                 productName = product.name,
+                productTag = product.tag,
                 timestampMillis = product.startTimeMillis,
                 year = startYear,
                 type = TimelineEventType.START
@@ -422,6 +406,7 @@ private fun buildTimelineEventsByYear(
                 TimelineEventItem(
                     id = "${product.id}_end",
                     productName = product.name,
+                    productTag = product.tag,
                     timestampMillis = product.endTimeMillis,
                     year = endYear,
                     type = TimelineEventType.END

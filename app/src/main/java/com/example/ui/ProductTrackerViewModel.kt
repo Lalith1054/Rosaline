@@ -56,7 +56,7 @@ class ProductTrackerViewModel(
         viewModelScope.launch {
             while (isActive) {
                 nowMillisFlow.value = System.currentTimeMillis()
-                delay(1_000L)
+                delay(60_000L)
             }
         }
     }
@@ -147,14 +147,6 @@ class ProductTrackerViewModel(
         }
     }
 
-    fun setShowLiveSubDayTimer(enabled: Boolean) {
-        if (settingsPreferences != null) {
-            settingsPreferences.setShowLiveSubDayTimer(enabled)
-        } else {
-            fallbackSettingsFlow.value = fallbackSettingsFlow.value.copy(showLiveSubDayTimer = enabled)
-        }
-    }
-
     fun setSelectedTheme(theme: com.example.data.AppThemeOption) {
         if (settingsPreferences != null) {
             settingsPreferences.setSelectedTheme(theme)
@@ -182,13 +174,26 @@ class ProductTrackerViewModel(
         }
     }
 
-    fun addProduct(name: String, onAdded: (String) -> Unit = {}) {
+    fun addCustomTag(newTag: String) {
+        val cleaned = newTag.trim()
+        if (cleaned.isEmpty()) return
+        if (settingsPreferences != null) {
+            settingsPreferences.addCustomTag(cleaned)
+        } else {
+            val current = fallbackSettingsFlow.value
+            if (cleaned.lowercase() !in current.allAvailableTags.map { it.lowercase() }) {
+                fallbackSettingsFlow.value = current.copy(customTags = current.customTags + cleaned)
+            }
+        }
+    }
+
+    fun addProduct(name: String, tag: String? = null, onAdded: (String) -> Unit = {}) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             nowMillisFlow.value = now
-            repository.startNewProduct(trimmed, now)
+            repository.startNewProduct(trimmed, now, tag)
             isAddDialogOpenFlow.value = false
             if (selectedFilterFlow.value == ProductFilter.FINISHED) {
                 selectedFilterFlow.value = ProductFilter.ALL
@@ -214,7 +219,7 @@ class ProductTrackerViewModel(
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             nowMillisFlow.value = now
-            repository.startNewProduct(product.name, now)
+            repository.startNewProduct(product.name, now, product.tag)
             onRestarted(product.name)
         }
     }

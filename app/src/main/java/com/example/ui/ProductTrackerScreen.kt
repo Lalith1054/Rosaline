@@ -30,10 +30,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -106,17 +109,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val QuickProductSuggestions = listOf(
-    "Body Wash",
-    "Shampoo",
-    "Conditioner",
-    "Toothpaste",
-    "Face Cleanser",
-    "Dish Soap",
-    "Body Lotion",
-    "Hand Soap"
-)
-
 private enum class ActiveScreenPage {
     HOME,
     TIMELINE,
@@ -179,7 +171,6 @@ fun ProductTrackerScreen(
                     onSelectTheme = { viewModel.setSelectedTheme(it) },
                     onToggleDarkMode = { viewModel.setDarkModeEnabled(it) },
                     onToggleCountDayOne = { viewModel.setCountStartDayAsDayOne(it) },
-                    onToggleLiveTimer = { viewModel.setShowLiveSubDayTimer(it) },
                     onClearFinished = { viewModel.clearFinishedProducts() },
                     onResetAllData = { viewModel.clearAllProducts() },
                     onUpdateGithubRepo = { viewModel.setGithubRepo(it) },
@@ -188,6 +179,7 @@ fun ProductTrackerScreen(
             }
 
             ActiveScreenPage.HOME -> {
+                val homeListState = rememberLazyListState()
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     contentWindowInsets = WindowInsets.safeDrawing,
@@ -221,120 +213,121 @@ fun ProductTrackerScreen(
                         }
                     }
                 ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .widthIn(max = 640.dp)
-                    .testTag("product_list"),
-                contentPadding = PaddingValues(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = 36.dp,
-                    bottom = 112.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                item(key = "header") {
-                    TrackerHeaderSection(
-                        activeCount = uiState.activeCount,
-                        finishedCount = uiState.finishedCount,
-                        onOpenTimeline = { viewModel.openTimeline() },
-                        onOpenSettings = { viewModel.openSettings() }
-                    )
-                }
+                    BlurredStickyHeaderLayout(
+                        listState = homeListState,
+                        scaffoldPadding = innerPadding,
+                        defaultHeaderHeight = 162.dp,
+                        headerContent = { collapseFraction ->
+                            CollapsingHomeHeaderBar(
+                                collapseFraction = collapseFraction,
+                                onOpenTimeline = { viewModel.openTimeline() },
+                                onOpenSettings = { viewModel.openSettings() }
+                            )
+                        }
+                    ) { topContentPadding ->
+                        LazyColumn(
+                            state = homeListState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .widthIn(max = 640.dp)
+                                .testTag("product_list"),
+                            contentPadding = PaddingValues(
+                                start = 20.dp,
+                                end = 20.dp,
+                                top = topContentPadding + 4.dp,
+                                bottom = 112.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
+                        ) {
+                            item(key = "summary") {
+                                TrackerSummaryBanner(
+                                    activeCount = uiState.activeCount,
+                                    finishedCount = uiState.finishedCount
+                                )
+                            }
 
-                if (uiState.allProducts.isNotEmpty()) {
-                    item(key = "filters") {
-                        FilterPillsRow(
-                            selectedFilter = uiState.selectedFilter,
-                            totalCount = uiState.allProducts.size,
-                            activeCount = uiState.activeCount,
-                            finishedCount = uiState.finishedCount,
-                            onSelectFilter = viewModel::setFilter
-                        )
-                    }
-                }
-
-                if (uiState.allProducts.isEmpty()) {
-                    item(key = "empty_all") {
-                        EmptyProductsCard()
-                    }
-                } else if (uiState.filteredProducts.isEmpty()) {
-                    item(key = "empty_filter") {
-                        EmptyFilterCard(
-                            onResetFilter = { viewModel.setFilter(ProductFilter.ALL) }
-                        )
-                    }
-                } else {
-                    items(
-                        items = uiState.filteredProducts,
-                        key = { it.id }
-                    ) { product ->
-                        ProductItemCard(
-                            product = product,
-                            nowMillis = uiState.nowMillis,
-                            countStartAsDayOne = uiState.userSettings.countStartDayAsDayOne,
-                            showLiveTimer = uiState.userSettings.showLiveSubDayTimer,
-                            onStopClick = {
-                                viewModel.stopProduct(product) { stoppedItem, days ->
-                                    val unit = if (days == 1L) "day" else "days"
-                                    coroutineScope.launch {
-                                        snackbarHostState.currentSnackbarData?.dismiss()
-                                        snackbarHostState.showSnackbar(
-                                            message = context.getString(
-                                                R.string.snackbar_stopped,
-                                                stoppedItem.name,
-                                                days,
-                                                unit
-                                            ),
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
-                                }
-                            },
-                            onRestartClick = {
-                                viewModel.restartProduct(product) { restartedName ->
-                                    coroutineScope.launch {
-                                        snackbarHostState.currentSnackbarData?.dismiss()
-                                        snackbarHostState.showSnackbar(
-                                            message = context.getString(
-                                                R.string.snackbar_restarted,
-                                                restartedName
-                                            ),
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
-                                }
-                            },
-                            onDeleteClick = {
-                                viewModel.deleteProduct(product) { deletedItem ->
-                                    coroutineScope.launch {
-                                        snackbarHostState.currentSnackbarData?.dismiss()
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = context.getString(
-                                                R.string.snackbar_deleted,
-                                                deletedItem.name
-                                            ),
-                                            actionLabel = context.getString(R.string.snackbar_undo),
-                                            duration = SnackbarDuration.Short
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            viewModel.undoDelete(deletedItem)
-                                        }
-                                    }
+                            if (uiState.allProducts.isNotEmpty()) {
+                                item(key = "filters") {
+                                    FilterPillsRow(
+                                        selectedFilter = uiState.selectedFilter,
+                                        onSelectFilter = viewModel::setFilter
+                                    )
                                 }
                             }
-                        )
+
+                            if (uiState.allProducts.isEmpty()) {
+                                item(key = "empty_all") {
+                                    EmptyProductsCard()
+                                }
+                            } else if (uiState.filteredProducts.isEmpty()) {
+                                item(key = "empty_filter") {
+                                    EmptyFilterCard(
+                                        onResetFilter = { viewModel.setFilter(ProductFilter.ALL) }
+                                    )
+                                }
+                            } else {
+                                items(
+                                    items = uiState.filteredProducts,
+                                    key = { it.id }
+                                ) { product ->
+                                    ProductItemCard(
+                                        product = product,
+                                        nowMillis = uiState.nowMillis,
+                                        countStartAsDayOne = uiState.userSettings.countStartDayAsDayOne,
+                                        onStopClick = {
+                                            viewModel.stopProduct(product) { stoppedItem, days ->
+                                                val unit = if (days == 1L) "day" else "days"
+                                                coroutineScope.launch {
+                                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                                    snackbarHostState.showSnackbar(
+                                                        message = context.getString(
+                                                            R.string.snackbar_stopped,
+                                                            stoppedItem.name,
+                                                            days,
+                                                            unit
+                                                        ),
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onRestartClick = {
+                                            viewModel.restartProduct(product) { restartedName ->
+                                                coroutineScope.launch {
+                                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                                    snackbarHostState.showSnackbar(
+                                                        message = context.getString(
+                                                            R.string.snackbar_restarted,
+                                                            restartedName
+                                                        ),
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onDeleteClick = {
+                                            viewModel.deleteProduct(product) { deletedItem ->
+                                                coroutineScope.launch {
+                                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = context.getString(
+                                                            R.string.snackbar_deleted,
+                                                            deletedItem.name
+                                                        ),
+                                                        actionLabel = context.getString(R.string.snackbar_undo),
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        viewModel.undoDelete(deletedItem)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
-            }
-        }
                 }
             }
         }
@@ -342,98 +335,44 @@ fun ProductTrackerScreen(
 
     if (uiState.isAddDialogOpen) {
         AddProductDialog(
+            availableTags = uiState.userSettings.allAvailableTags,
+            onCreateCustomTag = { newTag ->
+                viewModel.addCustomTag(newTag)
+            },
             onDismiss = { viewModel.closeAddDialog() },
-            onConfirmAdd = { productName ->
-                viewModel.addProduct(productName)
+            onConfirmAdd = { productName, selectedTag ->
+                viewModel.addProduct(productName, selectedTag)
             }
         )
     }
 }
 
+
 @Composable
-private fun TrackerHeaderSection(
+private fun TrackerSummaryBanner(
     activeCount: Int,
-    finishedCount: Int,
-    onOpenTimeline: () -> Unit,
-    onOpenSettings: () -> Unit
+    finishedCount: Int
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+            .testTag("summary_banner"),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 42.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "${stringResource(R.string.app_name)}.",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("greeting_heading")
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                IconButton(
-                    onClick = onOpenTimeline,
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .testTag("open_timeline_button")
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_ms_rounded_view_timeline),
-                        contentDescription = "Timeline",
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .testTag("open_settings_button")
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_ms_rounded_settings),
-                        contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
-            }
-        }
-
-        // Summary Row without Avg Lifespan or divider lines
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp)
-                .testTag("summary_banner"),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SummaryStatColumn(
-                value = activeCount.toString(),
-                label = stringResource(R.string.summary_active_label),
-                valueColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f)
-            )
-            SummaryStatColumn(
-                value = finishedCount.toString(),
-                label = stringResource(R.string.summary_finished_label),
-                valueColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        SummaryStatColumn(
+            value = activeCount.toString(),
+            label = stringResource(R.string.summary_active_label),
+            valueColor = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+        )
+        SummaryStatColumn(
+            value = finishedCount.toString(),
+            label = stringResource(R.string.summary_finished_label),
+            valueColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -465,9 +404,6 @@ private fun SummaryStatColumn(
 @Composable
 private fun FilterPillsRow(
     selectedFilter: ProductFilter,
-    totalCount: Int,
-    activeCount: Int,
-    finishedCount: Int,
     onSelectFilter: (ProductFilter) -> Unit
 ) {
     Row(
@@ -480,19 +416,19 @@ private fun FilterPillsRow(
     ) {
         RoundedFilterChip(
             selected = selectedFilter == ProductFilter.ALL,
-            label = "${stringResource(R.string.filter_all)} ($totalCount)",
+            label = stringResource(R.string.filter_all),
             onClick = { onSelectFilter(ProductFilter.ALL) },
             testTag = "filter_all_chip"
         )
         RoundedFilterChip(
             selected = selectedFilter == ProductFilter.ACTIVE,
-            label = "${stringResource(R.string.filter_active)} ($activeCount)",
+            label = stringResource(R.string.filter_active),
             onClick = { onSelectFilter(ProductFilter.ACTIVE) },
             testTag = "filter_active_chip"
         )
         RoundedFilterChip(
             selected = selectedFilter == ProductFilter.FINISHED,
-            label = "${stringResource(R.string.filter_finished)} ($finishedCount)",
+            label = stringResource(R.string.filter_finished),
             onClick = { onSelectFilter(ProductFilter.FINISHED) },
             testTag = "filter_finished_chip"
         )
@@ -534,18 +470,17 @@ private fun RoundedFilterChip(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProductItemCard(
     product: ProductEntry,
     nowMillis: Long,
     countStartAsDayOne: Boolean,
-    showLiveTimer: Boolean,
     onStopClick: () -> Unit,
     onRestartClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     val daysUsed = product.elapsedDaysCount(nowMillis, countStartAsDayOne)
-    val liveDurationText = product.formattedLiveDuration(nowMillis)
 
     Column(
         modifier = Modifier
@@ -558,7 +493,7 @@ private fun ProductItemCard(
                 .padding(vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Top Row: Product Title, Status Badge & Days Used Counter Pill
+            // Top Row: Product Title, Status Badge, Tag Pill & Days Used Counter Pill
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -581,6 +516,13 @@ private fun ProductItemCard(
                         modifier = Modifier.testTag("product_name_${product.id}")
                     )
 
+                    if (!product.tag.isNullOrBlank()) {
+                        ProductTagBadge(
+                            tag = product.tag,
+                            modifier = Modifier.testTag("product_tag_${product.id}")
+                        )
+                    }
+
                     Text(
                         text = formatDateRangeText(
                             startMillis = product.startTimeMillis,
@@ -600,47 +542,32 @@ private fun ProductItemCard(
                 )
             }
 
-            // Bottom Row: Live elapsed timer info + Stop button (or Restart/Delete for finished items)
+            // Bottom Row: Action buttons (Stop / Start New Bottle + Delete) without active timer
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            id = if (product.isActive) {
-                                R.drawable.ic_ms_rounded_hourglass_top
-                            } else {
-                                R.drawable.ic_ms_rounded_schedule
-                            }
-                        ),
-                        contentDescription = null,
-                        tint = if (product.isActive) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = when {
-                            product.isActive && showLiveTimer -> "Active timer: $liveDurationText"
-                            product.isActive -> "Timer running"
-                            showLiveTimer -> "Lasted $daysUsed ${if (daysUsed == 1L) "day" else "days"} ($liveDurationText)"
-                            else -> "Lasted $daysUsed ${if (daysUsed == 1L) "day" else "days"}"
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (product.isActive) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
+                if (!product.isActive) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_ms_rounded_schedule),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Lasted $daysUsed ${if (daysUsed == 1L) "day" else "days"}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
 
                 Row(
@@ -715,6 +642,26 @@ private fun ProductItemCard(
         HorizontalDivider(
             thickness = 0.8.dp,
             color = MaterialTheme.colorScheme.outline
+        )
+    }
+}
+
+@Composable
+private fun ProductTagBadge(
+    tag: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Text(
+            text = tag,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
         )
     }
 }
@@ -985,11 +932,16 @@ private fun MonochromeBottlesIllustration(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AddProductDialog(
+    availableTags: List<String>,
+    onCreateCustomTag: (String) -> Unit,
     onDismiss: () -> Unit,
-    onConfirmAdd: (String) -> Unit
+    onConfirmAdd: (String, String?) -> Unit
 ) {
     var productName by rememberSaveable { mutableStateOf("") }
+    var selectedTag by rememberSaveable { mutableStateOf<String?>(null) }
     var showError by rememberSaveable { mutableStateOf(false) }
+    var isCreatingCustomTag by rememberSaveable { mutableStateOf(false) }
+    var customTagInput by rememberSaveable { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -997,11 +949,22 @@ private fun AddProductDialog(
         runCatching { focusRequester.requestFocus() }
     }
 
+    val submitCustomTag = {
+        val cleaned = customTagInput.trim()
+        if (cleaned.isNotEmpty()) {
+            onCreateCustomTag(cleaned)
+            selectedTag = cleaned
+            customTagInput = ""
+            isCreatingCustomTag = false
+        }
+    }
+
     val submitProduct = {
-        if (productName.trim().isEmpty()) {
+        val finalName = productName.trim()
+        if (finalName.isEmpty()) {
             showError = true
         } else {
-            onConfirmAdd(productName.trim())
+            onConfirmAdd(finalName, selectedTag)
         }
     }
 
@@ -1025,7 +988,9 @@ private fun AddProductDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 OutlinedTextField(
@@ -1070,36 +1035,144 @@ private fun AddProductDialog(
                         .testTag("product_name_input")
                 )
 
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = stringResource(R.string.quick_pick_label),
                         style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        QuickProductSuggestions.forEach { suggestion ->
+                        availableTags.forEach { tag ->
+                            val isSelected = selectedTag?.equals(tag, ignoreCase = true) == true
+
                             SuggestionChip(
                                 onClick = {
-                                    productName = suggestion
-                                    showError = false
+                                    selectedTag = if (isSelected) null else tag
                                 },
                                 shape = CircleShape,
                                 colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    labelColor = MaterialTheme.colorScheme.onSurface
+                                    containerColor = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    labelColor = if (isSelected) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
                                 ),
                                 border = null,
                                 label = {
                                     Text(
-                                        text = suggestion,
+                                        text = tag,
                                         style = MaterialTheme.typography.labelMedium
                                     )
                                 },
-                                modifier = Modifier.testTag("suggestion_chip_${suggestion.lowercase().replace(" ", "_")}")
+                                modifier = Modifier.testTag("tag_chip_${tag.lowercase().replace(" ", "_")}")
                             )
+                        }
+                    }
+
+                    // Bottom option to create a custom tag
+                    if (isCreatingCustomTag) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = customTagInput,
+                                onValueChange = { customTagInput = it },
+                                label = {
+                                    Text(text = stringResource(R.string.input_custom_tag_label))
+                                },
+                                placeholder = {
+                                    Text(text = stringResource(R.string.input_custom_tag_placeholder))
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                                ),
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Words,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { submitCustomTag() }
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("custom_tag_input")
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        isCreatingCustomTag = false
+                                        customTagInput = ""
+                                    },
+                                    shape = CircleShape,
+                                    modifier = Modifier.minimumInteractiveComponentSize()
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.btn_cancel),
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                FilledTonalButton(
+                                    onClick = submitCustomTag,
+                                    enabled = customTagInput.trim().isNotEmpty(),
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
+                                    modifier = Modifier
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("confirm_custom_tag_button")
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.btn_add_custom_tag),
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            onClick = { isCreatingCustomTag = true },
+                            shape = CircleShape,
+                            color = Color.Transparent,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .minimumInteractiveComponentSize()
+                                .testTag("create_custom_tag_button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.btn_create_custom_tag),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
                 }

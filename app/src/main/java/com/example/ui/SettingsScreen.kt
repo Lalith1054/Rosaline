@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -90,7 +91,6 @@ fun SettingsScreen(
     onSelectTheme: (AppThemeOption) -> Unit,
     onToggleDarkMode: (Boolean) -> Unit,
     onToggleCountDayOne: (Boolean) -> Unit,
-    onToggleLiveTimer: (Boolean) -> Unit,
     onClearFinished: () -> Unit,
     onResetAllData: () -> Unit,
     onUpdateGithubRepo: (String) -> Unit = {},
@@ -137,6 +137,8 @@ fun SettingsScreen(
         }
     }
 
+    val settingsListState = rememberLazyListState()
+
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -147,55 +149,34 @@ fun SettingsScreen(
             SnackbarHost(hostState = snackbarHostState)
         }
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.TopCenter
-        ) {
+        BlurredStickyHeaderLayout(
+            listState = settingsListState,
+            scaffoldPadding = innerPadding,
+            defaultHeaderHeight = 194.dp,
+            headerContent = { collapseFraction ->
+                CollapsingSubpageHeaderBar(
+                    title = "Settings.",
+                    collapseFraction = collapseFraction,
+                    horizontalPadding = 20.dp,
+                    backButtonTestTag = "settings_back_button",
+                    headingTestTag = "settings_heading",
+                    onBackClick = onBackClick
+                )
+            }
+        ) { topContentPadding ->
             LazyColumn(
+                state = settingsListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .widthIn(max = 640.dp),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
-                    top = 36.dp,
+                    top = topContentPadding + 8.dp,
                     bottom = 64.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                // Header Row with Back Icon & Settings. heading
-                item(key = "settings_header") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 24.dp, bottom = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        IconButton(
-                            onClick = onBackClick,
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("settings_back_button")
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_ms_rounded_arrow_back),
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-
-                        Text(
-                            text = "Settings.",
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.testTag("settings_heading")
-                        )
-                    }
-                }
 
                 // Section: Themes (Dark Mode switch + Classic White, A Certain Chocolate Milkshake, The Usual Bread Omelette)
                 item(key = "section_themes") {
@@ -223,10 +204,10 @@ fun SettingsScreen(
                     )
                 }
 
-                // Section: Display & Timer Preferences
+                // Section: Display Preferences
                 item(key = "section_preferences") {
                     SettingsSectionTitle(
-                        title = "TIMER & DISPLAY",
+                        title = "DISPLAY",
                         modifier = Modifier.padding(top = 28.dp)
                     )
                 }
@@ -239,21 +220,6 @@ fun SettingsScreen(
                         checked = settings.countStartDayAsDayOne,
                         onCheckedChange = onToggleCountDayOne,
                         testTag = "toggle_count_day_one"
-                    )
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                item(key = "pref_live_timer") {
-                    SettingsToggleRow(
-                        iconRes = R.drawable.ic_ms_rounded_timer,
-                        title = "Show live elapsed timer",
-                        subtitle = "Display real-time hours, minutes, and seconds on active product items",
-                        checked = settings.showLiveSubDayTimer,
-                        onCheckedChange = onToggleLiveTimer,
-                        testTag = "toggle_live_timer"
                     )
                     HorizontalDivider(
                         thickness = 0.8.dp,
@@ -915,7 +881,12 @@ private fun buildExportSummary(
             val endStr = formatter.format(Date(item.endTimeMillis ?: nowMillis))
             "Finished ($startStr – $endStr)"
         }
-        sb.appendLine("• ${item.name}: $days ${if (days == 1L) "day" else "days"} [$statusStr]")
+        val tagSuffix = if (!item.tag.isNullOrBlank() && !item.tag.equals(item.name, ignoreCase = true)) {
+            " (${item.tag})"
+        } else {
+            ""
+        }
+        sb.appendLine("• ${item.name}$tagSuffix: $days ${if (days == 1L) "day" else "days"} [$statusStr]")
     }
     return sb.toString()
 }

@@ -15,9 +15,13 @@
     <string name="dialog_add_title">Start Tracking a Product</string>
     <string name="dialog_add_subtitle">Enter the product name to start its day timer right now.</string>
     <string name="input_product_name_label">Product Name</string>
-    <string name="input_product_name_placeholder">e.g., Body Wash, Toothpaste</string>
-    <string name="quick_pick_label">Quick ideas</string>
-    <string name="btn_start_timer">Start Timer</string>
+    <string name="input_product_name_placeholder">e.g., Dove, Nivea, Cetaphil</string>
+    <string name="quick_pick_label">Tags</string>
+    <string name="btn_create_custom_tag">+ Create custom tag</string>
+    <string name="input_custom_tag_label">Custom tag</string>
+    <string name="input_custom_tag_placeholder">e.g., Serum, Deodorant</string>
+    <string name="btn_add_custom_tag">Add</string>
+    <string name="btn_start_timer">Start</string>
     <string name="btn_cancel">Cancel</string>
     <string name="btn_stop_timer">Stop</string>
     <string name="btn_restart_product">Start New Bottle</string>

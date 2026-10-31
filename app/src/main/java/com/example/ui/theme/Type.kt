@@ -49,8 +49,8 @@ val Typography = Typography(
     headlineLarge = TextStyle(
         fontFamily = NewsreaderMaxBoldFontFamily,
         fontWeight = FontWeight.Black,
-        fontSize = 54.sp,
-        lineHeight = 58.sp,
+        fontSize = 50.sp,
+        lineHeight = 54.sp,
         letterSpacing = (-0.8).sp
     ),
     headlineMedium = TextStyle(

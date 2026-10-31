@@ -11,12 +11,25 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
+
+val DefaultProductTags = listOf(
+    "Bodywash",
+    "Shampoo",
+    "Conditioner",
+    "Toothpaste",
+    "Face Cleanser",
+    "Body Lotion",
+    "Hand Soap",
+    "Dish Soap"
+)
 
 @Entity(tableName = "product_entries")
 data class ProductEntry(
@@ -25,7 +38,8 @@ data class ProductEntry(
     val name: String,
     val startTimeMillis: Long,
     val endTimeMillis: Long? = null,
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val tag: String? = null
 ) {
     /**
      * Returns the elapsed time in milliseconds from startTimeMillis until endTimeMillis (if stopped)
@@ -45,24 +59,6 @@ data class ProductEntry(
         val fullDays = TimeUnit.MILLISECONDS.toDays(millis)
         return if (countStartAsDayOne) fullDays + 1L else fullDays
     }
-
-    /**
-     * Live human-readable elapsed duration string.
-     */
-    fun formattedLiveDuration(nowMillis: Long): String {
-        val totalSeconds = elapsedMillis(nowMillis) / 1000L
-        val days = totalSeconds / 86400L
-        val hours = (totalSeconds % 86400L) / 3600L
-        val minutes = (totalSeconds % 3600L) / 60L
-        val seconds = totalSeconds % 60L
-
-        return when {
-            days > 0L -> "${days}d ${hours}h ${minutes}m"
-            hours > 0L -> "${hours}h ${minutes}m ${seconds}s"
-            minutes > 0L -> "${minutes}m ${seconds}s"
-            else -> "${seconds}s"
-        }
-    }
 }
 
 enum class AppThemeOption(val displayName: String) {
@@ -79,24 +75,35 @@ enum class AppThemeOption(val displayName: String) {
 
 data class UserSettings(
     val countStartDayAsDayOne: Boolean = false,
-    val showLiveSubDayTimer: Boolean = true,
     val selectedTheme: AppThemeOption = AppThemeOption.CLASSIC_WHITE,
     val darkModeEnabled: Boolean = false,
-    val githubRepo: String = com.example.BuildConfig.GITHUB_REPOSITORY.ifBlank { "lalith0918/Rosaline" }
-)
+    val githubRepo: String = com.example.BuildConfig.GITHUB_REPOSITORY.ifBlank { "lalith0918/Rosaline" },
+    val customTags: List<String> = emptyList()
+) {
+    val allAvailableTags: List<String>
+        get() = (DefaultProductTags + customTags).distinctBy { it.lowercase() }
+}
 
 class SettingsPreferences(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("rosaline_settings", Context.MODE_PRIVATE)
 
     private val defaultRepo = com.example.BuildConfig.GITHUB_REPOSITORY.ifBlank { "lalith0918/Rosaline" }
 
+    private fun loadCustomTags(): List<String> {
+        val raw = prefs.getString(KEY_CUSTOM_TAGS, "") ?: ""
+        return raw.split(CUSTOM_TAG_DELIMITER)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
+    }
+
     private val _settingsFlow = MutableStateFlow(
         UserSettings(
             countStartDayAsDayOne = prefs.getBoolean(KEY_COUNT_DAY_ONE, false),
-            showLiveSubDayTimer = prefs.getBoolean(KEY_SHOW_LIVE_TIMER, true),
             selectedTheme = AppThemeOption.fromName(prefs.getString(KEY_SELECTED_THEME, AppThemeOption.CLASSIC_WHITE.name)),
             darkModeEnabled = prefs.getBoolean(KEY_DARK_MODE, false),
-            githubRepo = prefs.getString(KEY_GITHUB_REPO, defaultRepo)?.ifBlank { defaultRepo } ?: defaultRepo
+            githubRepo = prefs.getString(KEY_GITHUB_REPO, defaultRepo)?.ifBlank { defaultRepo } ?: defaultRepo,
+            customTags = loadCustomTags()
         )
     )
     val settingsFlow: StateFlow<UserSettings> = _settingsFlow.asStateFlow()
@@ -104,11 +111,6 @@ class SettingsPreferences(context: Context) {
     fun setCountStartDayAsDayOne(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_COUNT_DAY_ONE, enabled).apply()
         _settingsFlow.value = _settingsFlow.value.copy(countStartDayAsDayOne = enabled)
-    }
-
-    fun setShowLiveSubDayTimer(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SHOW_LIVE_TIMER, enabled).apply()
-        _settingsFlow.value = _settingsFlow.value.copy(showLiveSubDayTimer = enabled)
     }
 
     fun setSelectedTheme(theme: AppThemeOption) {
@@ -133,12 +135,26 @@ class SettingsPreferences(context: Context) {
         _settingsFlow.value = _settingsFlow.value.copy(githubRepo = cleaned)
     }
 
+    fun addCustomTag(newTag: String) {
+        val cleaned = newTag.trim()
+        if (cleaned.isEmpty()) return
+        val existingAll = (DefaultProductTags + _settingsFlow.value.customTags).map { it.lowercase() }
+        if (cleaned.lowercase() in existingAll) return
+
+        val updatedCustom = _settingsFlow.value.customTags + cleaned
+        prefs.edit()
+            .putString(KEY_CUSTOM_TAGS, updatedCustom.joinToString(CUSTOM_TAG_DELIMITER))
+            .apply()
+        _settingsFlow.value = _settingsFlow.value.copy(customTags = updatedCustom)
+    }
+
     companion object {
         private const val KEY_COUNT_DAY_ONE = "count_start_day_as_day_one"
-        private const val KEY_SHOW_LIVE_TIMER = "show_live_sub_day_timer"
         private const val KEY_SELECTED_THEME = "selected_theme_option"
         private const val KEY_DARK_MODE = "dark_mode_enabled"
         private const val KEY_GITHUB_REPO = "github_release_repo"
+        private const val KEY_CUSTOM_TAGS = "custom_product_tags"
+        private const val CUSTOM_TAG_DELIMITER = "|||"
     }
 }
 
@@ -166,13 +182,19 @@ interface ProductDao {
     suspend fun getProductById(id: Long): ProductEntry?
 }
 
-@Database(entities = [ProductEntry::class], version = 1, exportSchema = false)
+@Database(entities = [ProductEntry::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao
 
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE product_entries ADD COLUMN tag TEXT")
+            }
+        }
 
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -181,6 +203,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "lastdrop_products.db"
                 )
+                    .addMigrations(MIGRATION_1_2)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance
@@ -193,14 +216,20 @@ abstract class AppDatabase : RoomDatabase() {
 class ProductRepository(private val productDao: ProductDao) {
     val allProducts: Flow<List<ProductEntry>> = productDao.observeAllProducts()
 
-    suspend fun startNewProduct(name: String, startTimeMillis: Long = System.currentTimeMillis()): Long {
+    suspend fun startNewProduct(
+        name: String,
+        startTimeMillis: Long = System.currentTimeMillis(),
+        tag: String? = null
+    ): Long {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return -1L
+        val cleanedTag = tag?.trim()?.takeIf { it.isNotEmpty() }
         val entry = ProductEntry(
             name = trimmed,
             startTimeMillis = startTimeMillis,
             endTimeMillis = null,
-            isActive = true
+            isActive = true,
+            tag = cleanedTag
         )
         return productDao.insertProduct(entry)
     }
