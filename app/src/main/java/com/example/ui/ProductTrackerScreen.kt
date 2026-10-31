@@ -140,6 +140,16 @@ fun ProductTrackerScreen(
         }
     }
 
+    if (uiState.isTimelineOpen) {
+        TimelineScreen(
+            allProducts = uiState.allProducts,
+            nowMillis = uiState.nowMillis,
+            onBackClick = { viewModel.closeTimeline() },
+            modifier = modifier
+        )
+        return
+    }
+
     if (uiState.isSettingsOpen) {
         SettingsScreen(
             settings = uiState.userSettings,
@@ -147,6 +157,7 @@ fun ProductTrackerScreen(
             nowMillis = uiState.nowMillis,
             onBackClick = { viewModel.closeSettings() },
             onSelectTheme = { viewModel.setSelectedTheme(it) },
+            onToggleDarkMode = { viewModel.setDarkModeEnabled(it) },
             onToggleCountDayOne = { viewModel.setCountStartDayAsDayOne(it) },
             onToggleLiveTimer = { viewModel.setShowLiveSubDayTimer(it) },
             onClearFinished = { viewModel.clearFinishedProducts() },
@@ -212,7 +223,7 @@ fun ProductTrackerScreen(
                     TrackerHeaderSection(
                         activeCount = uiState.activeCount,
                         finishedCount = uiState.finishedCount,
-                        averageDays = uiState.averageFinishedDays,
+                        onOpenTimeline = { viewModel.openTimeline() },
                         onOpenSettings = { viewModel.openSettings() }
                     )
                 }
@@ -319,7 +330,7 @@ fun ProductTrackerScreen(
 private fun TrackerHeaderSection(
     activeCount: Int,
     finishedCount: Int,
-    averageDays: Int,
+    onOpenTimeline: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     Column(
@@ -343,28 +354,47 @@ private fun TrackerHeaderSection(
                     .testTag("greeting_heading")
             )
 
-            IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier
-                    .minimumInteractiveComponentSize()
-                    .testTag("open_settings_button")
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_ms_rounded_settings),
-                    contentDescription = "Settings",
-                    tint = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(30.dp)
-                )
+                IconButton(
+                    onClick = onOpenTimeline,
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("open_timeline_button")
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_ms_rounded_view_timeline),
+                        contentDescription = "Timeline",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("open_settings_button")
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_ms_rounded_settings),
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
             }
         }
 
-        // Summary Row without divider lines
+        // Summary Row without Avg Lifespan or divider lines
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 12.dp)
                 .testTag("summary_banner"),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             SummaryStatColumn(
@@ -377,12 +407,6 @@ private fun TrackerHeaderSection(
                 value = finishedCount.toString(),
                 label = stringResource(R.string.summary_finished_label),
                 valueColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
-            SummaryStatColumn(
-                value = if (finishedCount > 0) "${averageDays}d" else "—",
-                label = stringResource(R.string.summary_avg_days_label),
-                valueColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -461,7 +485,7 @@ private fun RoundedFilterChip(
     FilterChip(
         selected = selected,
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
+        shape = CircleShape,
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = MaterialTheme.colorScheme.primary,
             selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
@@ -615,7 +639,7 @@ private fun ProductItemCard(
                     if (product.isActive) {
                         Button(
                             onClick = onStopClick,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -639,7 +663,7 @@ private fun ProductItemCard(
                     } else {
                         FilledTonalButton(
                             onClick = onRestartClick,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = CircleShape,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -685,7 +709,7 @@ private fun StatusBadgePill(isActive: Boolean) {
     )
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = CircleShape,
         color = if (isActive) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
@@ -816,7 +840,7 @@ private fun EmptyFilterCard(
         )
         TextButton(
             onClick = onResetFilter,
-            shape = RoundedCornerShape(14.dp),
+            shape = CircleShape,
             modifier = Modifier.minimumInteractiveComponentSize()
         ) {
             Text(
@@ -1038,7 +1062,7 @@ private fun AddProductDialog(
                                     productName = suggestion
                                     showError = false
                                 },
-                                shape = RoundedCornerShape(14.dp),
+                                shape = CircleShape,
                                 colors = SuggestionChipDefaults.suggestionChipColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                     labelColor = MaterialTheme.colorScheme.onSurface
@@ -1060,7 +1084,7 @@ private fun AddProductDialog(
         confirmButton = {
             Button(
                 onClick = submitProduct,
-                shape = RoundedCornerShape(14.dp),
+                shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -1079,7 +1103,7 @@ private fun AddProductDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(14.dp),
+                shape = CircleShape,
                 modifier = Modifier
                     .minimumInteractiveComponentSize()
                     .testTag("cancel_add_product_button")

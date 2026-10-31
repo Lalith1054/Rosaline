@@ -33,6 +33,7 @@ data class ProductTrackerUiState(
     val averageFinishedDays: Int = 0,
     val isAddDialogOpen: Boolean = false,
     val isSettingsOpen: Boolean = false,
+    val isTimelineOpen: Boolean = false,
     val userSettings: UserSettings = UserSettings()
 )
 
@@ -45,6 +46,7 @@ class ProductTrackerViewModel(
     private val nowMillisFlow = MutableStateFlow(System.currentTimeMillis())
     private val isAddDialogOpenFlow = MutableStateFlow(false)
     private val isSettingsOpenFlow = MutableStateFlow(false)
+    private val isTimelineOpenFlow = MutableStateFlow(false)
     private val fallbackSettingsFlow = MutableStateFlow(UserSettings())
 
     private val activeSettingsFlow: StateFlow<UserSettings> =
@@ -64,10 +66,10 @@ class ProductTrackerViewModel(
         selectedFilterFlow,
         nowMillisFlow,
         isAddDialogOpenFlow,
-        combine(isSettingsOpenFlow, activeSettingsFlow) { isSettings, settings ->
-            isSettings to settings
+        combine(isSettingsOpenFlow, isTimelineOpenFlow, activeSettingsFlow) { isSettings, isTimeline, settings ->
+            Triple(isSettings, isTimeline, settings)
         }
-    ) { products, filter, now, isDialogOpen, (isSettings, settings) ->
+    ) { products, filter, now, isDialogOpen, (isSettings, isTimeline, settings) ->
         val filtered = when (filter) {
             ProductFilter.ALL -> products
             ProductFilter.ACTIVE -> products.filter { it.isActive }
@@ -94,6 +96,7 @@ class ProductTrackerViewModel(
             averageFinishedDays = avgDays,
             isAddDialogOpen = isDialogOpen,
             isSettingsOpen = isSettings,
+            isTimelineOpen = isTimeline,
             userSettings = settings
         )
     }.stateIn(
@@ -119,11 +122,21 @@ class ProductTrackerViewModel(
     }
 
     fun openSettings() {
+        isTimelineOpenFlow.value = false
         isSettingsOpenFlow.value = true
     }
 
     fun closeSettings() {
         isSettingsOpenFlow.value = false
+    }
+
+    fun openTimeline() {
+        isSettingsOpenFlow.value = false
+        isTimelineOpenFlow.value = true
+    }
+
+    fun closeTimeline() {
+        isTimelineOpenFlow.value = false
     }
 
     fun setCountStartDayAsDayOne(enabled: Boolean) {
@@ -146,7 +159,18 @@ class ProductTrackerViewModel(
         if (settingsPreferences != null) {
             settingsPreferences.setSelectedTheme(theme)
         } else {
-            fallbackSettingsFlow.value = fallbackSettingsFlow.value.copy(selectedTheme = theme)
+            fallbackSettingsFlow.value = fallbackSettingsFlow.value.copy(
+                selectedTheme = theme,
+                darkModeEnabled = false
+            )
+        }
+    }
+
+    fun setDarkModeEnabled(enabled: Boolean) {
+        if (settingsPreferences != null) {
+            settingsPreferences.setDarkModeEnabled(enabled)
+        } else {
+            fallbackSettingsFlow.value = fallbackSettingsFlow.value.copy(darkModeEnabled = enabled)
         }
     }
 

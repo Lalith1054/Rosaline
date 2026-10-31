@@ -3,6 +3,7 @@ package com.example.ui.theme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -78,6 +79,29 @@ private val BreadOmeletteColorScheme = lightColorScheme(
     onError = Color.White
 )
 
+private val MonochromeDarkColorScheme = darkColorScheme(
+    primary = MonoDarkPrimary,
+    onPrimary = MonoDarkOnPrimary,
+    primaryContainer = MonoDarkSurfaceVariant,
+    onPrimaryContainer = MonoDarkTextPrimary,
+    secondary = MonoDarkPrimary,
+    onSecondary = MonoDarkOnPrimary,
+    secondaryContainer = MonoDarkSurfaceVariant,
+    onSecondaryContainer = MonoDarkTextPrimary,
+    tertiary = MonoDarkTextSecondary,
+    tertiaryContainer = MonoDarkSurfaceVariant,
+    onTertiaryContainer = MonoDarkTextPrimary,
+    background = MonoDarkBackground,
+    onBackground = MonoDarkTextPrimary,
+    surface = MonoDarkSurface,
+    onSurface = MonoDarkTextPrimary,
+    surfaceVariant = MonoDarkSurfaceVariant,
+    onSurfaceVariant = MonoDarkTextSecondary,
+    outline = MonoDarkOutline,
+    error = Color(0xFFE0E0E0),
+    onError = Color(0xFF111214)
+)
+
 val RoundedAppShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(10.dp),
@@ -89,12 +113,17 @@ val RoundedAppShapes = Shapes(
 @Composable
 fun LastDropTheme(
     appTheme: AppThemeOption = AppThemeOption.CLASSIC_WHITE,
+    darkMode: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when (appTheme) {
-        AppThemeOption.CLASSIC_WHITE -> ClassicWhiteColorScheme
-        AppThemeOption.CHOCOLATE_MILKSHAKE -> ChocolateMilkshakeColorScheme
-        AppThemeOption.BREAD_OMELETTE -> BreadOmeletteColorScheme
+    val colorScheme = if (darkMode) {
+        MonochromeDarkColorScheme
+    } else {
+        when (appTheme) {
+            AppThemeOption.CLASSIC_WHITE -> ClassicWhiteColorScheme
+            AppThemeOption.CHOCOLATE_MILKSHAKE -> ChocolateMilkshakeColorScheme
+            AppThemeOption.BREAD_OMELETTE -> BreadOmeletteColorScheme
+        }
     }
 
     MaterialTheme(

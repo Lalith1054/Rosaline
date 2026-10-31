@@ -80,6 +80,7 @@ fun SettingsScreen(
     nowMillis: Long,
     onBackClick: () -> Unit,
     onSelectTheme: (AppThemeOption) -> Unit,
+    onToggleDarkMode: (Boolean) -> Unit,
     onToggleCountDayOne: (Boolean) -> Unit,
     onToggleLiveTimer: (Boolean) -> Unit,
     onClearFinished: () -> Unit,
@@ -159,11 +160,24 @@ fun SettingsScreen(
                     }
                 }
 
-                // Section: Themes (Classic White, Chocolate Milkshake, Bread Omelette)
+                // Section: Themes (Dark Mode switch + Classic White, A Certain Chocolate Milkshake, The Usual Bread Omelette)
                 item(key = "section_themes") {
                     SettingsSectionTitle(title = "THEMES")
+                    SettingsToggleRow(
+                        iconRes = R.drawable.ic_ms_rounded_dark_mode,
+                        title = "Dark Mode",
+                        subtitle = "Switch to a sleek dark surface palette",
+                        checked = settings.darkModeEnabled,
+                        onCheckedChange = onToggleDarkMode,
+                        testTag = "toggle_dark_mode"
+                    )
+                    HorizontalDivider(
+                        thickness = 0.8.dp,
+                        color = MaterialTheme.colorScheme.outline
+                    )
                     ThemeSelectorRow(
                         selectedTheme = settings.selectedTheme,
+                        darkModeEnabled = settings.darkModeEnabled,
                         onSelectTheme = onSelectTheme
                     )
                     HorizontalDivider(
@@ -413,6 +427,7 @@ fun SettingsScreen(
 @Composable
 private fun ThemeSelectorRow(
     selectedTheme: AppThemeOption,
+    darkModeEnabled: Boolean,
     onSelectTheme: (AppThemeOption) -> Unit
 ) {
     Column(
@@ -438,7 +453,7 @@ private fun ThemeSelectorRow(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Choose your preferred surface tone",
+                    text = "Choose your preferred light theme tone",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -451,7 +466,7 @@ private fun ThemeSelectorRow(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             AppThemeOption.entries.forEach { option ->
-                val isSelected = option == selectedTheme
+                val isSelected = !darkModeEnabled && option == selectedTheme
                 val swatchColor = when (option) {
                     AppThemeOption.CLASSIC_WHITE -> MonoBackground
                     AppThemeOption.CHOCOLATE_MILKSHAKE -> ChocolateBackground
@@ -460,7 +475,7 @@ private fun ThemeSelectorRow(
 
                 Surface(
                     onClick = { onSelectTheme(option) },
-                    shape = RoundedCornerShape(14.dp),
+                    shape = CircleShape,
                     color = if (isSelected) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -640,7 +655,7 @@ private fun SettingsActionRow(
             Button(
                 onClick = onClick,
                 enabled = enabled,
-                shape = RoundedCornerShape(14.dp),
+                shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -659,7 +674,7 @@ private fun SettingsActionRow(
             FilledTonalButton(
                 onClick = onClick,
                 enabled = enabled,
-                shape = RoundedCornerShape(14.dp),
+                shape = CircleShape,
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -707,7 +722,7 @@ private fun ConfirmSettingsDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                shape = RoundedCornerShape(14.dp),
+                shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -725,13 +740,13 @@ private fun ConfirmSettingsDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(14.dp),
+                shape = CircleShape,
                 modifier = Modifier.minimumInteractiveComponentSize()
             ) {
                 Text(
                     text = "Cancel",
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }

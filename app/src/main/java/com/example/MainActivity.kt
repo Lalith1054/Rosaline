@@ -6,7 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.AppDatabase
@@ -39,8 +41,18 @@ class MainActivity : ComponentActivity() {
                 factory = ProductTrackerViewModel.provideFactory(repository, settingsPreferences)
             )
             val uiState by trackerViewModel.uiState.collectAsStateWithLifecycle()
+            val isDark = uiState.userSettings.darkModeEnabled
 
-            LastDropTheme(appTheme = uiState.userSettings.selectedTheme) {
+            LaunchedEffect(isDark) {
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.isAppearanceLightStatusBars = !isDark
+                insetsController.isAppearanceLightNavigationBars = !isDark
+            }
+
+            LastDropTheme(
+                appTheme = uiState.userSettings.selectedTheme,
+                darkMode = isDark
+            ) {
                 ProductTrackerScreen(viewModel = trackerViewModel)
             }
         }

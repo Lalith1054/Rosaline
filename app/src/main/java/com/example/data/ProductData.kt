@@ -67,8 +67,8 @@ data class ProductEntry(
 
 enum class AppThemeOption(val displayName: String) {
     CLASSIC_WHITE("Classic White"),
-    CHOCOLATE_MILKSHAKE("Chocolate Milkshake"),
-    BREAD_OMELETTE("Bread Omelette");
+    CHOCOLATE_MILKSHAKE("A Certain Chocolate Milkshake"),
+    BREAD_OMELETTE("The Usual Bread Omelette");
 
     companion object {
         fun fromName(name: String?): AppThemeOption {
@@ -80,7 +80,8 @@ enum class AppThemeOption(val displayName: String) {
 data class UserSettings(
     val countStartDayAsDayOne: Boolean = false,
     val showLiveSubDayTimer: Boolean = true,
-    val selectedTheme: AppThemeOption = AppThemeOption.CLASSIC_WHITE
+    val selectedTheme: AppThemeOption = AppThemeOption.CLASSIC_WHITE,
+    val darkModeEnabled: Boolean = false
 )
 
 class SettingsPreferences(context: Context) {
@@ -90,7 +91,8 @@ class SettingsPreferences(context: Context) {
         UserSettings(
             countStartDayAsDayOne = prefs.getBoolean(KEY_COUNT_DAY_ONE, false),
             showLiveSubDayTimer = prefs.getBoolean(KEY_SHOW_LIVE_TIMER, true),
-            selectedTheme = AppThemeOption.fromName(prefs.getString(KEY_SELECTED_THEME, AppThemeOption.CLASSIC_WHITE.name))
+            selectedTheme = AppThemeOption.fromName(prefs.getString(KEY_SELECTED_THEME, AppThemeOption.CLASSIC_WHITE.name)),
+            darkModeEnabled = prefs.getBoolean(KEY_DARK_MODE, false)
         )
     )
     val settingsFlow: StateFlow<UserSettings> = _settingsFlow.asStateFlow()
@@ -106,14 +108,26 @@ class SettingsPreferences(context: Context) {
     }
 
     fun setSelectedTheme(theme: AppThemeOption) {
-        prefs.edit().putString(KEY_SELECTED_THEME, theme.name).apply()
-        _settingsFlow.value = _settingsFlow.value.copy(selectedTheme = theme)
+        prefs.edit()
+            .putString(KEY_SELECTED_THEME, theme.name)
+            .putBoolean(KEY_DARK_MODE, false)
+            .apply()
+        _settingsFlow.value = _settingsFlow.value.copy(
+            selectedTheme = theme,
+            darkModeEnabled = false
+        )
+    }
+
+    fun setDarkModeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DARK_MODE, enabled).apply()
+        _settingsFlow.value = _settingsFlow.value.copy(darkModeEnabled = enabled)
     }
 
     companion object {
         private const val KEY_COUNT_DAY_ONE = "count_start_day_as_day_one"
         private const val KEY_SHOW_LIVE_TIMER = "show_live_sub_day_timer"
         private const val KEY_SELECTED_THEME = "selected_theme_option"
+        private const val KEY_DARK_MODE = "dark_mode_enabled"
     }
 }
 
