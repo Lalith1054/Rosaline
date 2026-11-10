@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Silky droplet and sparkle for Conditioner -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M11,3.35c-0.46,-0.56 -1.32,-0.56 -1.78,0C6.88,6.21 4,10.33 4,13.8C4,17.78 7.13,21 11,21s7,-3.22 7,-7.2C18,10.33 15.12,6.21 12.78,3.35zM11,18.5c-2.48,0 -4.5,-2.02 -4.5,-4.5c0,-0.41 0.34,-0.75 0.75,-0.75s0.75,0.34 0.75,0.75c0,1.65 1.35,3 3,3c0.41,0 0.75,0.34 0.75,0.75S11.41,18.5 11,18.5zM19,2l1.09,2.41L22.5,5.5l-2.41,1.09L19,9l-1.09,-2.41L15.5,5.5l2.41,-1.09L19,2z" />
+</vector>

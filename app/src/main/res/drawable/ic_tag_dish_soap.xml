@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Sparkling dish / plate with suds for Dish Soap -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M11,4C6.58,4 3,7.58 3,12s3.58,8 8,8s8,-3.58 8,-8c0,-0.78 -0.11,-1.53 -0.32,-2.24C17.65,10.23 16.5,10.5 15.28,10.5c-2.61,0 -4.78,-1.83 -5.33,-4.28C10.29,6.08 10.64,6 11,6c0.48,0 0.95,0.07 1.39,0.2C12.14,5.48 12,4.71 12,3.91C11.67,3.97 11.34,4 11,4zM11,16.5c-2.48,0 -4.5,-2.02 -4.5,-4.5S8.52,7.5 11,7.5s4.5,2.02 4.5,4.5S13.48,16.5 11,16.5zM19,2l0.94,2.06L22,5l-2.06,0.94L19,8l-0.94,-2.06L16,5l2.06,-0.94L19,2zM15.5,6.5c-0.83,0 -1.5,0.67 -1.5,1.5s0.67,1.5 1.5,1.5S17,8.83 17,8S16.33,6.5 15.5,6.5z" />
+</vector>

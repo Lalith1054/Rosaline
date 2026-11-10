@@ -22,9 +22,13 @@ val NewsreaderFontFamily = FontFamily(
     Font(R.font.newsreader_800, FontWeight.ExtraBold)
 )
 
+val RobotoFontFamily = FontFamily(
+    Font(R.font.roboto, FontWeight.Normal)
+)
+
 val LibreFranklinFontFamily = FontFamily(
-    Font(R.font.libre_franklin_500, FontWeight.Normal),
-    Font(R.font.libre_franklin_600, FontWeight.Medium),
+    Font(R.font.roboto, FontWeight.Normal),
+    Font(R.font.libre_franklin_500, FontWeight.Medium),
     Font(R.font.libre_franklin_600, FontWeight.SemiBold),
     Font(R.font.libre_franklin_700, FontWeight.Bold),
     Font(R.font.libre_franklin_800, FontWeight.ExtraBold),
@@ -49,8 +53,8 @@ val Typography = Typography(
     headlineLarge = TextStyle(
         fontFamily = NewsreaderMaxBoldFontFamily,
         fontWeight = FontWeight.Black,
-        fontSize = 50.sp,
-        lineHeight = 54.sp,
+        fontSize = 48.sp,
+        lineHeight = 52.sp,
         letterSpacing = (-0.8).sp
     ),
     headlineMedium = TextStyle(
@@ -80,16 +84,22 @@ val Typography = Typography(
         lineHeight = 20.sp
     ),
     bodyLarge = TextStyle(
-        fontFamily = LibreFranklinFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = RobotoFontFamily,
+        fontWeight = FontWeight.Normal,
         fontSize = 15.sp,
         lineHeight = 22.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = LibreFranklinFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = RobotoFontFamily,
+        fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = RobotoFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp
     ),
     labelLarge = TextStyle(
         fontFamily = LibreFranklinFontFamily,

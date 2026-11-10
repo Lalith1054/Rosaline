@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Hand with soap bubbles for Hand Soap -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M16.5,2C15.12,2 14,3.12 14,4.5S15.12,7 16.5,7S19,5.88 19,4.5S17.88,2 16.5,2zM20,8c-0.83,0 -1.5,0.67 -1.5,1.5S19.17,11 20,11s1.5,-0.67 1.5,-1.5S20.83,8 20,8zM11.5,5.5c0,-0.83 -0.67,-1.5 -1.5,-1.5S8.5,4.67 8.5,5.5v6h-1V7C7.5,6.17 6.83,5.5 6,5.5S4.5,6.17 4.5,7v8.5c0,3.59 2.91,6.5 6.5,6.5h2.21c2.75,0 5.15,-1.87 5.82,-4.54l0.91,-3.65c0.2,-0.81 -0.29,-1.63 -1.1,-1.83c-0.78,-0.19 -1.57,0.26 -1.8,1.02L16.2,15.5h-0.7V8c0,-0.83 -0.67,-1.5 -1.5,-1.5S12.5,7.17 12.5,8v3.5h-1V5.5z" />
+</vector>

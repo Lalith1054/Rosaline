@@ -39,7 +39,8 @@ data class ProductEntry(
     val startTimeMillis: Long,
     val endTimeMillis: Long? = null,
     val isActive: Boolean = true,
-    val tag: String? = null
+    val tag: String? = null,
+    val imageUri: String? = null
 ) {
     /**
      * Returns the elapsed time in milliseconds from startTimeMillis until endTimeMillis (if stopped)
@@ -182,7 +183,7 @@ interface ProductDao {
     suspend fun getProductById(id: Long): ProductEntry?
 }
 
-@Database(entities = [ProductEntry::class], version = 2, exportSchema = false)
+@Database(entities = [ProductEntry::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao
 
@@ -196,6 +197,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE product_entries ADD COLUMN imageUri TEXT")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -203,7 +210,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "lastdrop_products.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance
@@ -219,17 +226,20 @@ class ProductRepository(private val productDao: ProductDao) {
     suspend fun startNewProduct(
         name: String,
         startTimeMillis: Long = System.currentTimeMillis(),
-        tag: String? = null
+        tag: String? = null,
+        imageUri: String? = null
     ): Long {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return -1L
         val cleanedTag = tag?.trim()?.takeIf { it.isNotEmpty() }
+        val cleanedImage = imageUri?.trim()?.takeIf { it.isNotEmpty() }
         val entry = ProductEntry(
             name = trimmed,
             startTimeMillis = startTimeMillis,
             endTimeMillis = null,
             isActive = true,
-            tag = cleanedTag
+            tag = cleanedTag,
+            imageUri = cleanedImage
         )
         return productDao.insertProduct(entry)
     }

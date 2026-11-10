@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -49,7 +50,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,13 +60,28 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import com.example.BuildConfig
 import com.example.R
@@ -137,8 +155,6 @@ fun SettingsScreen(
         }
     }
 
-    val settingsListState = rememberLazyListState()
-
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -149,34 +165,62 @@ fun SettingsScreen(
             SnackbarHost(hostState = snackbarHostState)
         }
     ) { innerPadding ->
-        BlurredStickyHeaderLayout(
-            listState = settingsListState,
-            scaffoldPadding = innerPadding,
-            defaultHeaderHeight = 194.dp,
-            headerContent = { collapseFraction ->
-                CollapsingSubpageHeaderBar(
-                    title = "Settings.",
-                    collapseFraction = collapseFraction,
-                    horizontalPadding = 20.dp,
-                    backButtonTestTag = "settings_back_button",
-                    headingTestTag = "settings_heading",
-                    onBackClick = onBackClick
-                )
+        val listState = rememberLazyListState()
+        val density = LocalDensity.current
+        val expandRangeDp = 96.dp
+        val expandRangePx = with(density) { expandRangeDp.toPx() }
+        val collapseFraction by remember(expandRangePx) {
+            derivedStateOf {
+                if (listState.firstVisibleItemIndex > 0) {
+                    1f
+                } else {
+                    (listState.firstVisibleItemScrollOffset.toFloat() / expandRangePx.coerceAtLeast(1f))
+                        .coerceIn(0f, 1f)
+                }
             }
-        ) { topContentPadding ->
-            LazyColumn(
-                state = settingsListState,
+        }
+        val isScrolled by remember {
+            derivedStateOf {
+                listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 4
+            }
+        }
+        val contentGraphicsLayer = rememberGraphicsLayer()
+        val headerBlurLayer = rememberGraphicsLayer()
+        val bgColor = MaterialTheme.colorScheme.background
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = innerPadding.calculateBottomPadding()),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .widthIn(max = 640.dp),
-                contentPadding = PaddingValues(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = topContentPadding + 8.dp,
-                    bottom = 64.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
+                    .widthIn(max = 640.dp)
             ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .drawWithContent {
+                            contentGraphicsLayer.record {
+                                drawRect(bgColor)
+                                this@drawWithContent.drawContent()
+                            }
+                            drawLayer(contentGraphicsLayer)
+                        },
+                    contentPadding = PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = innerPadding.calculateTopPadding() + 76.dp,
+                        bottom = 64.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    item(key = "header_expand_spacer") {
+                        Spacer(modifier = Modifier.height(expandRangeDp))
+                    }
 
                 // Section: Themes (Dark Mode switch + Classic White, A Certain Chocolate Milkshake, The Usual Bread Omelette)
                 item(key = "section_themes") {
@@ -340,7 +384,7 @@ fun SettingsScreen(
                                 repoConfigError = null
                                 showConfigureRepoDialog = true
                             },
-                            shape = CircleShape,
+                            shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline),
                             modifier = Modifier.testTag("set_release_repo_button")
@@ -361,7 +405,7 @@ fun SettingsScreen(
                                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                                 }
                             },
-                            shape = CircleShape,
+                            shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline),
                             modifier = Modifier.testTag("open_releases_page_button")
@@ -448,6 +492,112 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                }
+
+                // Blurred sticky header overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(bgColor)
+                            .clipToBounds()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .blur(
+                                    radius = 6.dp,
+                                    edgeTreatment = BlurredEdgeTreatment.Rectangle
+                                )
+                                .drawBehind {
+                                    val w = size.width.toInt()
+                                    val h = size.height.toInt()
+                                    if (w > 0 && h > 0) {
+                                        headerBlurLayer.record(size = IntSize(w, h)) {
+                                            drawRect(bgColor)
+                                            drawLayer(contentGraphicsLayer)
+                                        }
+                                        drawLayer(headerBlurLayer)
+                                    }
+                                }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        0.0f to bgColor.copy(alpha = 0.34f),
+                                        0.75f to bgColor.copy(alpha = 0.28f),
+                                        1.0f to bgColor.copy(alpha = 0.22f)
+                                    )
+                                )
+                        )
+                    }
+
+                    val backButtonAlpha = (1f - collapseFraction * 1.6f).coerceIn(0f, 1f)
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                top = innerPadding.calculateTopPadding() + lerp(36.dp, 14.dp, collapseFraction),
+                                bottom = lerp(16.dp, 10.dp, collapseFraction),
+                                start = 20.dp,
+                                end = 20.dp
+                            )
+                            .height(lerp(116.dp, 48.dp, collapseFraction))
+                    ) {
+                        if (backButtonAlpha > 0f) {
+                            IconButton(
+                                onClick = onBackClick,
+                                enabled = collapseFraction < 0.6f,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .align(Alignment.TopStart)
+                                    .offset(
+                                        x = (-10).dp,
+                                        y = lerp(0.dp, (-48).dp, collapseFraction)
+                                    )
+                                    .alpha(backButtonAlpha)
+                                    .testTag("settings_back_button")
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_ms_rounded_arrow_back),
+                                    contentDescription = "Back",
+                                    tint = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Settings.",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontSize = lerp(48.sp, 28.sp, collapseFraction),
+                                lineHeight = lerp(52.sp, 32.sp, collapseFraction)
+                            ),
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .offset(y = lerp(60.dp, 8.dp, collapseFraction))
+                                .testTag("settings_heading")
+                        )
+                    }
+
+                    if (isScrolled) {
+                        HorizontalDivider(
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                            thickness = 0.6.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.75f)
                         )
                     }
                 }
@@ -585,7 +735,7 @@ private fun ThemeSelectorRow(
 
                 Surface(
                     onClick = { onSelectTheme(option) },
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(10.dp),
                     color = if (isSelected) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -765,7 +915,7 @@ private fun SettingsActionRow(
             Button(
                 onClick = onClick,
                 enabled = enabled,
-                shape = CircleShape,
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -784,7 +934,7 @@ private fun SettingsActionRow(
             FilledTonalButton(
                 onClick = onClick,
                 enabled = enabled,
-                shape = CircleShape,
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -832,7 +982,7 @@ private fun ConfirmSettingsDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                shape = CircleShape,
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -850,7 +1000,7 @@ private fun ConfirmSettingsDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                shape = CircleShape,
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.minimumInteractiveComponentSize()
             ) {
                 Text(
@@ -950,7 +1100,7 @@ private fun UpdateResultDialog(
         confirmButton = {
             Button(
                 onClick = onDownloadUpdate,
-                shape = CircleShape,
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -974,7 +1124,7 @@ private fun UpdateResultDialog(
                 if (info.apkDownloadUrl != null) {
                     TextButton(
                         onClick = onOpenReleasePage,
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.minimumInteractiveComponentSize()
                     ) {
                         Text(
@@ -986,7 +1136,7 @@ private fun UpdateResultDialog(
                 }
                 TextButton(
                     onClick = onDismiss,
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.minimumInteractiveComponentSize()
                 ) {
                     Text(
@@ -1059,7 +1209,7 @@ private fun ConfigureRepoDialog(
             Button(
                 onClick = { onSaveAndCheck(repoText) },
                 enabled = repoText.isNotBlank(),
-                shape = CircleShape,
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -1077,7 +1227,7 @@ private fun ConfigureRepoDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                shape = CircleShape,
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.minimumInteractiveComponentSize()
             ) {
                 Text(

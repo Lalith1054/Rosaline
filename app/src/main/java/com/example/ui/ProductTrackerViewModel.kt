@@ -33,7 +33,6 @@ data class ProductTrackerUiState(
     val averageFinishedDays: Int = 0,
     val isAddDialogOpen: Boolean = false,
     val isSettingsOpen: Boolean = false,
-    val isTimelineOpen: Boolean = false,
     val userSettings: UserSettings = UserSettings()
 )
 
@@ -46,7 +45,6 @@ class ProductTrackerViewModel(
     private val nowMillisFlow = MutableStateFlow(System.currentTimeMillis())
     private val isAddDialogOpenFlow = MutableStateFlow(false)
     private val isSettingsOpenFlow = MutableStateFlow(false)
-    private val isTimelineOpenFlow = MutableStateFlow(false)
     private val fallbackSettingsFlow = MutableStateFlow(UserSettings())
 
     private val activeSettingsFlow: StateFlow<UserSettings> =
@@ -66,10 +64,10 @@ class ProductTrackerViewModel(
         selectedFilterFlow,
         nowMillisFlow,
         isAddDialogOpenFlow,
-        combine(isSettingsOpenFlow, isTimelineOpenFlow, activeSettingsFlow) { isSettings, isTimeline, settings ->
-            Triple(isSettings, isTimeline, settings)
+        combine(isSettingsOpenFlow, activeSettingsFlow) { isSettings, settings ->
+            Pair(isSettings, settings)
         }
-    ) { products, filter, now, isDialogOpen, (isSettings, isTimeline, settings) ->
+    ) { products, filter, now, isDialogOpen, (isSettings, settings) ->
         val filtered = when (filter) {
             ProductFilter.ALL -> products
             ProductFilter.ACTIVE -> products.filter { it.isActive }
@@ -96,7 +94,6 @@ class ProductTrackerViewModel(
             averageFinishedDays = avgDays,
             isAddDialogOpen = isDialogOpen,
             isSettingsOpen = isSettings,
-            isTimelineOpen = isTimeline,
             userSettings = settings
         )
     }.stateIn(
@@ -122,21 +119,11 @@ class ProductTrackerViewModel(
     }
 
     fun openSettings() {
-        isTimelineOpenFlow.value = false
         isSettingsOpenFlow.value = true
     }
 
     fun closeSettings() {
         isSettingsOpenFlow.value = false
-    }
-
-    fun openTimeline() {
-        isSettingsOpenFlow.value = false
-        isTimelineOpenFlow.value = true
-    }
-
-    fun closeTimeline() {
-        isTimelineOpenFlow.value = false
     }
 
     fun setCountStartDayAsDayOne(enabled: Boolean) {
@@ -187,13 +174,20 @@ class ProductTrackerViewModel(
         }
     }
 
-    fun addProduct(name: String, tag: String? = null, onAdded: (String) -> Unit = {}) {
+    fun addProduct(
+        name: String,
+        tag: String? = null,
+        imageUri: String? = null,
+        startTimeMillis: Long? = null,
+        onAdded: (String) -> Unit = {}
+    ) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             nowMillisFlow.value = now
-            repository.startNewProduct(trimmed, now, tag)
+            val effectiveStart = startTimeMillis?.coerceAtMost(now) ?: now
+            repository.startNewProduct(trimmed, effectiveStart, tag, imageUri)
             isAddDialogOpenFlow.value = false
             if (selectedFilterFlow.value == ProductFilter.FINISHED) {
                 selectedFilterFlow.value = ProductFilter.ALL
@@ -219,7 +213,7 @@ class ProductTrackerViewModel(
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             nowMillisFlow.value = now
-            repository.startNewProduct(product.name, now, product.tag)
+            repository.startNewProduct(product.name, now, product.tag, product.imageUri)
             onRestarted(product.name)
         }
     }

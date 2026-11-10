@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Tooth / dental care icon for Toothpaste -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M8.5,3C5.46,3 3,5.46 3,8.5c0,2.28 0.92,4.35 1.68,6.28l1.46,3.72C6.59,19.65 7.7,20.4 8.93,20.4c1.12,0 2.09,-0.74 2.4,-1.82l0.55,-1.92c0.07,-0.25 0.3,-0.41 0.55,-0.41s0.48,0.16 0.55,0.41l0.55,1.92c0.31,1.08 1.28,1.82 2.4,1.82c1.23,0 2.34,-0.75 2.79,-1.9l1.46,-3.72C20.94,12.85 21.86,10.78 21.86,8.5C21.86,5.46 19.4,3 16.36,3c-1.54,0 -2.93,0.63 -3.93,1.64C11.43,3.63 10.04,3 8.5,3z" />
+</vector>
