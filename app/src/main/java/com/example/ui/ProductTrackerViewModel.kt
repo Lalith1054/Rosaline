@@ -32,6 +32,7 @@ data class ProductTrackerUiState(
     val finishedCount: Int = 0,
     val averageFinishedDays: Int = 0,
     val isAddDialogOpen: Boolean = false,
+    val editingProduct: ProductEntry? = null,
     val isSettingsOpen: Boolean = false,
     val userSettings: UserSettings = UserSettings()
 )
@@ -44,6 +45,7 @@ class ProductTrackerViewModel(
     private val selectedFilterFlow = MutableStateFlow(ProductFilter.ALL)
     private val nowMillisFlow = MutableStateFlow(System.currentTimeMillis())
     private val isAddDialogOpenFlow = MutableStateFlow(false)
+    private val editingProductFlow = MutableStateFlow<ProductEntry?>(null)
     private val isSettingsOpenFlow = MutableStateFlow(false)
     private val fallbackSettingsFlow = MutableStateFlow(UserSettings())
 
@@ -63,11 +65,13 @@ class ProductTrackerViewModel(
         repository.allProducts,
         selectedFilterFlow,
         nowMillisFlow,
-        isAddDialogOpenFlow,
+        combine(isAddDialogOpenFlow, editingProductFlow) { isAddOpen, editing ->
+            Pair(isAddOpen, editing)
+        },
         combine(isSettingsOpenFlow, activeSettingsFlow) { isSettings, settings ->
             Pair(isSettings, settings)
         }
-    ) { products, filter, now, isDialogOpen, (isSettings, settings) ->
+    ) { products, filter, now, (isDialogOpen, editing), (isSettings, settings) ->
         val filtered = when (filter) {
             ProductFilter.ALL -> products
             ProductFilter.ACTIVE -> products.filter { it.isActive }
@@ -93,6 +97,7 @@ class ProductTrackerViewModel(
             finishedCount = finishedItems.size,
             averageFinishedDays = avgDays,
             isAddDialogOpen = isDialogOpen,
+            editingProduct = editing,
             isSettingsOpen = isSettings,
             userSettings = settings
         )
@@ -116,6 +121,14 @@ class ProductTrackerViewModel(
 
     fun closeAddDialog() {
         isAddDialogOpenFlow.value = false
+    }
+
+    fun openEditDialog(product: ProductEntry) {
+        editingProductFlow.value = product
+    }
+
+    fun closeEditDialog() {
+        editingProductFlow.value = null
     }
 
     fun openSettings() {
@@ -193,6 +206,32 @@ class ProductTrackerViewModel(
                 selectedFilterFlow.value = ProductFilter.ALL
             }
             onAdded(trimmed)
+        }
+    }
+
+    fun updateProduct(
+        product: ProductEntry,
+        name: String,
+        tag: String? = null,
+        imageUri: String? = null,
+        startTimeMillis: Long? = null,
+        onUpdated: (String) -> Unit = {}
+    ) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            nowMillisFlow.value = now
+            val effectiveStart = startTimeMillis?.coerceAtMost(now) ?: now
+            repository.updateProductDetails(
+                product = product,
+                name = trimmed,
+                startTimeMillis = effectiveStart,
+                tag = tag,
+                imageUri = imageUri
+            )
+            editingProductFlow.value = null
+            onUpdated(trimmed)
         }
     }
 

@@ -4,13 +4,18 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -19,6 +24,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +42,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -109,6 +116,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -208,272 +216,399 @@ fun ProductTrackerScreen(
             }
 
             ActiveScreenPage.HOME -> {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    contentWindowInsets = WindowInsets.safeDrawing,
-                    containerColor = MaterialTheme.colorScheme.background,
-                    snackbarHost = {
-                        SnackbarHost(hostState = snackbarHostState)
-                    },
-                    floatingActionButtonPosition = FabPosition.Center,
-                    floatingActionButton = {
-                        FloatingActionButton(
-                            onClick = { viewModel.openAddDialog() },
-                            shape = CircleShape,
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            elevation = FloatingActionButtonDefaults.elevation(
-                                defaultElevation = 0.dp,
-                                pressedElevation = 0.dp,
-                                focusedElevation = 0.dp,
-                                hoveredElevation = 0.dp
-                            ),
-                            modifier = Modifier
-                                .size(76.dp)
-                                .minimumInteractiveComponentSize()
-                                .testTag("add_product_fab")
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_ms_rounded_add),
-                                contentDescription = stringResource(R.string.fab_add_product),
-                                modifier = Modifier.size(42.dp)
-                            )
-                        }
-                    }
-                ) { innerPadding ->
-                    val listState = rememberLazyListState()
-                    val density = LocalDensity.current
-                    val expandRangeDp = 60.dp
-                    val expandRangePx = with(density) { expandRangeDp.toPx() }
-                    val collapseFraction by remember(expandRangePx) {
-                        derivedStateOf {
-                            if (listState.firstVisibleItemIndex > 0) {
-                                1f
-                            } else {
-                                (listState.firstVisibleItemScrollOffset.toFloat() / expandRangePx.coerceAtLeast(1f))
-                                    .coerceIn(0f, 1f)
-                            }
-                        }
-                    }
-                    val isScrolled by remember {
-                        derivedStateOf {
-                            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 4
-                        }
-                    }
-                    val contentGraphicsLayer = rememberGraphicsLayer()
-                    val headerBlurLayer = rememberGraphicsLayer()
-                    val bgColor = MaterialTheme.colorScheme.background
+                val isSecondPageOpen = uiState.isAddDialogOpen || uiState.editingProduct != null
+                val sheetProgress by animateFloatAsState(
+                    targetValue = if (isSecondPageOpen) 1f else 0f,
+                    animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing),
+                    label = "sheet_stack_progress"
+                )
+                val density = LocalDensity.current
+                val topStatusInsetPx = WindowInsets.safeDrawing.getTop(density).toFloat()
 
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            if (sheetProgress > 0.001f) {
+                                Color.Black
+                            } else {
+                                MaterialTheme.colorScheme.background
+                            }
+                        )
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(bottom = innerPadding.calculateBottomPadding()),
-                        contentAlignment = Alignment.TopCenter
+                            .graphicsLayer {
+                                val scale = 1f - (0.09f * sheetProgress)
+                                scaleX = scale
+                                scaleY = scale
+                                transformOrigin = TransformOrigin(0.5f, 0f)
+                                translationY = (topStatusInsetPx + 6.dp.toPx()) * sheetProgress
+                                val cornerRadiusPx = 22.dp.toPx() * sheetProgress
+                                shape = RoundedCornerShape(
+                                    topStart = cornerRadiusPx.toDp(),
+                                    topEnd = cornerRadiusPx.toDp()
+                                )
+                                clip = sheetProgress > 0.001f
+                            }
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .widthIn(max = 640.dp)
-                        ) {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .drawWithContent {
-                                        contentGraphicsLayer.record {
-                                            drawRect(bgColor)
-                                            this@drawWithContent.drawContent()
-                                        }
-                                        drawLayer(contentGraphicsLayer)
-                                    }
-                                    .testTag("product_list"),
-                                contentPadding = PaddingValues(
-                                    start = 20.dp,
-                                    end = 20.dp,
-                                    top = innerPadding.calculateTopPadding() + 88.dp,
-                                    bottom = 112.dp
-                                ),
-                                verticalArrangement = Arrangement.spacedBy(0.dp)
-                            ) {
-                                item(key = "header_expand_spacer") {
-                                    Spacer(modifier = Modifier.height(expandRangeDp))
-                                }
-
-                                item(key = "summary") {
-                                    TrackerSummaryBanner(
-                                        activeCount = uiState.activeCount,
-                                        finishedCount = uiState.finishedCount
-                                    )
-                                }
-
-                            if (uiState.allProducts.isNotEmpty()) {
-                                item(key = "filters") {
-                                    FilterPillsRow(
-                                        selectedFilter = uiState.selectedFilter,
-                                        onSelectFilter = viewModel::setFilter
-                                    )
-                                }
+                        Scaffold(
+                            modifier = Modifier.fillMaxSize(),
+                            contentWindowInsets = WindowInsets.safeDrawing,
+                            containerColor = MaterialTheme.colorScheme.background,
+                            snackbarHost = {
+                                SnackbarHost(hostState = snackbarHostState)
                             }
-
-                            if (uiState.allProducts.isEmpty()) {
-                                item(key = "empty_all") {
-                                    EmptyProductsCard()
-                                }
-                            } else if (uiState.filteredProducts.isEmpty()) {
-                                item(key = "empty_filter") {
-                                    EmptyFilterCard(
-                                        onResetFilter = { viewModel.setFilter(ProductFilter.ALL) }
-                                    )
-                                }
-                            } else {
-                                items(
-                                    items = uiState.filteredProducts,
-                                    key = { it.id }
-                                ) { product ->
-                                    ProductItemCard(
-                                        product = product,
-                                        nowMillis = uiState.nowMillis,
-                                        countStartAsDayOne = uiState.userSettings.countStartDayAsDayOne,
-                                        onStopClick = {
-                                            viewModel.stopProduct(product) { stoppedItem, days ->
-                                                val unit = if (days == 1L) "day" else "days"
-                                                coroutineScope.launch {
-                                                    snackbarHostState.currentSnackbarData?.dismiss()
-                                                    snackbarHostState.showSnackbar(
-                                                        message = context.getString(
-                                                            R.string.snackbar_stopped,
-                                                            stoppedItem.name,
-                                                            days,
-                                                            unit
-                                                        ),
-                                                        duration = SnackbarDuration.Short
-                                                    )
-                                                }
-                                            }
-                                        },
-                                        onRestartClick = {
-                                            viewModel.restartProduct(product) { restartedName ->
-                                                coroutineScope.launch {
-                                                    snackbarHostState.currentSnackbarData?.dismiss()
-                                                    snackbarHostState.showSnackbar(
-                                                        message = context.getString(
-                                                            R.string.snackbar_restarted,
-                                                            restartedName
-                                                        ),
-                                                        duration = SnackbarDuration.Short
-                                                    )
-                                                }
-                                            }
-                                        },
-                                        onDeleteClick = {
-                                            viewModel.deleteProduct(product) { deletedItem ->
-                                                coroutineScope.launch {
-                                                    snackbarHostState.currentSnackbarData?.dismiss()
-                                                    val result = snackbarHostState.showSnackbar(
-                                                        message = context.getString(
-                                                            R.string.snackbar_deleted,
-                                                            deletedItem.name
-                                                        ),
-                                                        actionLabel = context.getString(R.string.snackbar_undo),
-                                                        duration = SnackbarDuration.Short
-                                                    )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        viewModel.undoDelete(deletedItem)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                            }
-
-                            // Blurred sticky header overlay
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .align(Alignment.TopCenter)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(bgColor)
-                                        .clipToBounds()
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .blur(
-                                                radius = 6.dp,
-                                                edgeTreatment = BlurredEdgeTreatment.Rectangle
-                                            )
-                                            .drawBehind {
-                                                val w = size.width.toInt()
-                                                val h = size.height.toInt()
-                                                if (w > 0 && h > 0) {
-                                                    headerBlurLayer.record(size = IntSize(w, h)) {
-                                                        drawRect(bgColor)
-                                                        drawLayer(contentGraphicsLayer)
-                                                    }
-                                                    drawLayer(headerBlurLayer)
-                                                }
-                                            }
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    0.0f to bgColor.copy(alpha = 0.34f),
-                                                    0.75f to bgColor.copy(alpha = 0.28f),
-                                                    1.0f to bgColor.copy(alpha = 0.22f)
-                                                )
-                                            )
-                                    )
-                                }
-
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(
-                                            top = innerPadding.calculateTopPadding() + lerp(64.dp, 20.dp, collapseFraction),
-                                            bottom = lerp(14.dp, 10.dp, collapseFraction),
-                                            start = 20.dp,
-                                            end = 20.dp
-                                        )
-                                ) {
-                                    TrackerGreetingBar(
-                                        collapseFraction = collapseFraction,
-                                        onOpenSettings = { viewModel.openSettings() }
-                                    )
-                                }
-
-                                if (isScrolled) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.align(Alignment.BottomCenter),
-                                        thickness = 0.6.dp,
-                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.75f)
-                                    )
+                        ) { innerPadding ->
+                        val listState = rememberLazyListState()
+                        val expandRangeDp = 60.dp
+                        val expandRangePx = with(density) { expandRangeDp.toPx() }
+                        val collapseFraction by remember(expandRangePx) {
+                            derivedStateOf {
+                                if (listState.firstVisibleItemIndex > 0) {
+                                    1f
+                                } else {
+                                    (listState.firstVisibleItemScrollOffset.toFloat() / expandRangePx.coerceAtLeast(1f))
+                                        .coerceIn(0f, 1f)
                                 }
                             }
                         }
+                        val isScrolled by remember {
+                            derivedStateOf {
+                                listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 4
+                            }
+                        }
+                        val contentGraphicsLayer = rememberGraphicsLayer()
+                        val headerBlurLayer = rememberGraphicsLayer()
+                        var viewportHeightPx by remember { mutableIntStateOf(0) }
+                        val bgColor = MaterialTheme.colorScheme.background
+                        val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
+                        val outlineColor = MaterialTheme.colorScheme.outline
+                        val pageGradientBrush = remember(bgColor, surfaceVariantColor, outlineColor) {
+                            Brush.verticalGradient(
+                                0.0f to bgColor,
+                                0.42f to androidx.compose.ui.graphics.lerp(bgColor, surfaceVariantColor, 0.45f),
+                                0.78f to androidx.compose.ui.graphics.lerp(bgColor, surfaceVariantColor, 0.9f),
+                                1.0f to androidx.compose.ui.graphics.lerp(surfaceVariantColor, outlineColor, 0.38f)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(pageGradientBrush)
+                                .onSizeChanged { viewportHeightPx = it.height },
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .widthIn(max = 640.dp)
+                            ) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .drawWithContent {
+                                            contentGraphicsLayer.record {
+                                                drawRect(brush = pageGradientBrush)
+                                                this@drawWithContent.drawContent()
+                                            }
+                                            drawLayer(contentGraphicsLayer)
+                                        }
+                                        .testTag("product_list"),
+                                    contentPadding = PaddingValues(
+                                        start = 20.dp,
+                                        end = 20.dp,
+                                        top = innerPadding.calculateTopPadding() + 88.dp,
+                                        bottom = innerPadding.calculateBottomPadding() + 96.dp
+                                    ),
+                                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                                ) {
+                                    item(key = "header_expand_spacer") {
+                                        Spacer(modifier = Modifier.height(expandRangeDp))
+                                    }
+
+                                    item(key = "summary") {
+                                        TrackerSummaryBanner(
+                                            activeCount = uiState.activeCount,
+                                            finishedCount = uiState.finishedCount
+                                        )
+                                    }
+
+                                    if (uiState.allProducts.isNotEmpty()) {
+                                        item(key = "filters") {
+                                            FilterPillsRow(
+                                                selectedFilter = uiState.selectedFilter,
+                                                onSelectFilter = viewModel::setFilter
+                                            )
+                                        }
+                                    }
+
+                                    if (uiState.allProducts.isEmpty()) {
+                                        item(key = "empty_all") {
+                                            EmptyProductsCard()
+                                        }
+                                    } else if (uiState.filteredProducts.isEmpty()) {
+                                        item(key = "empty_filter") {
+                                            EmptyFilterCard(
+                                                onResetFilter = { viewModel.setFilter(ProductFilter.ALL) }
+                                            )
+                                        }
+                                    } else {
+                                        items(
+                                            items = uiState.filteredProducts,
+                                            key = { it.id }
+                                        ) { product ->
+                                            ProductItemCard(
+                                                product = product,
+                                                nowMillis = uiState.nowMillis,
+                                                countStartAsDayOne = uiState.userSettings.countStartDayAsDayOne,
+                                                onStopClick = {
+                                                    viewModel.stopProduct(product) { stoppedItem, days ->
+                                                        val unit = if (days == 1L) "day" else "days"
+                                                        coroutineScope.launch {
+                                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                                            snackbarHostState.showSnackbar(
+                                                                message = context.getString(
+                                                                    R.string.snackbar_stopped,
+                                                                    stoppedItem.name,
+                                                                    days,
+                                                                    unit
+                                                                ),
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                onRestartClick = {
+                                                    viewModel.restartProduct(product) { restartedName ->
+                                                        coroutineScope.launch {
+                                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                                            snackbarHostState.showSnackbar(
+                                                                message = context.getString(
+                                                                    R.string.snackbar_restarted,
+                                                                    restartedName
+                                                                ),
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                onEditClick = {
+                                                    viewModel.openEditDialog(product)
+                                                },
+                                                onDeleteClick = {
+                                                    viewModel.deleteProduct(product) { deletedItem ->
+                                                        coroutineScope.launch {
+                                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                                            val result = snackbarHostState.showSnackbar(
+                                                                message = context.getString(
+                                                                    R.string.snackbar_deleted,
+                                                                    deletedItem.name
+                                                                ),
+                                                                actionLabel = context.getString(R.string.snackbar_undo),
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                            if (result == SnackbarResult.ActionPerformed) {
+                                                                viewModel.undoDelete(deletedItem)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Blurred sticky header overlay
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.TopCenter)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .background(bgColor)
+                                            .clipToBounds()
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .blur(
+                                                    radius = 6.dp,
+                                                    edgeTreatment = BlurredEdgeTreatment.Rectangle
+                                                )
+                                                .drawBehind {
+                                                    val w = size.width.toInt()
+                                                    val h = size.height.toInt()
+                                                    if (w > 0 && h > 0) {
+                                                        headerBlurLayer.record(size = IntSize(w, h)) {
+                                                            drawRect(bgColor)
+                                                            drawLayer(contentGraphicsLayer)
+                                                        }
+                                                        drawLayer(headerBlurLayer)
+                                                    }
+                                                }
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        0.0f to bgColor.copy(alpha = 0.34f),
+                                                        0.75f to bgColor.copy(alpha = 0.28f),
+                                                        1.0f to bgColor.copy(alpha = 0.22f)
+                                                    )
+                                                )
+                                        )
+                                    }
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                top = innerPadding.calculateTopPadding() + lerp(64.dp, 20.dp, collapseFraction),
+                                                bottom = lerp(14.dp, 10.dp, collapseFraction),
+                                                start = 20.dp,
+                                                end = 20.dp
+                                            )
+                                    ) {
+                                        TrackerGreetingBar(
+                                            collapseFraction = collapseFraction,
+                                            onOpenSettings = { viewModel.openSettings() }
+                                        )
+                                    }
+
+                                    if (isScrolled) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.align(Alignment.BottomCenter),
+                                            thickness = 0.6.dp,
+                                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.75f)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Full-width Rounded-Top Bottom Tab Bar contrasting cleanly against the subtle background gradient
+                            val tabBarShape = RoundedCornerShape(
+                                topStart = 28.dp,
+                                topEnd = 28.dp
+                            )
+
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.BottomCenter)
+                                    .testTag("bottom_nav_bar"),
+                                shape = tabBarShape,
+                                color = bgColor,
+                                shadowElevation = 10.dp
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            top = 12.dp,
+                                            bottom = innerPadding.calculateBottomPadding() + 10.dp
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    IconButton(
+                                        onClick = { viewModel.openAddDialog() },
+                                        modifier = Modifier
+                                            .size(54.dp)
+                                            .minimumInteractiveComponentSize()
+                                            .testTag("add_product_fab")
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_ms_rounded_add),
+                                            contentDescription = stringResource(R.string.fab_add_product),
+                                            tint = MaterialTheme.colorScheme.onBackground,
+                                            modifier = Modifier.requiredSize(46.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                        // Dimming overlay inside the receded first page so its top peeking strip looks medium grey like the reference image
+                        if (sheetProgress > 0.01f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.36f * sheetProgress))
+                                    .clickable(
+                                        enabled = isSecondPageOpen,
+                                        onClick = {
+                                            if (uiState.editingProduct != null) {
+                                                viewModel.closeEditDialog()
+                                            } else {
+                                                viewModel.closeAddDialog()
+                                            }
+                                        }
+                                    )
+                            )
+                        }
+                    }
+
+                    // Keep the last editingProduct remembered during exit animation so the sheet doesn't flicker
+                    var activeSheetProduct by remember { mutableStateOf<ProductEntry?>(null) }
+                    if (uiState.editingProduct != null) {
+                        activeSheetProduct = uiState.editingProduct
+                    } else if (uiState.isAddDialogOpen) {
+                        activeSheetProduct = null
+                    }
+
+                    // Bottom-to-top Second Page Sheet ("Start tracking a Product" / "Edit Product")
+                    AnimatedVisibility(
+                        visible = isSecondPageOpen,
+                        enter = slideInVertically(
+                            initialOffsetY = { fullHeight -> fullHeight },
+                            animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing)
+                        ),
+                        exit = slideOutVertically(
+                            targetOffsetY = { fullHeight -> fullHeight },
+                            animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                        ),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        val productBeingEdited = uiState.editingProduct ?: activeSheetProduct
+                        AddProductDialog(
+                            availableTags = uiState.userSettings.allAvailableTags,
+                            initialProduct = productBeingEdited,
+                            onCreateCustomTag = { newTag ->
+                                viewModel.addCustomTag(newTag)
+                            },
+                            onDismiss = {
+                                if (uiState.editingProduct != null) {
+                                    viewModel.closeEditDialog()
+                                } else {
+                                    viewModel.closeAddDialog()
+                                }
+                            },
+                            onConfirmAdd = { productName, selectedTag, imageUri, startTimeMillis ->
+                                val editingTarget = uiState.editingProduct
+                                if (editingTarget != null) {
+                                    viewModel.updateProduct(
+                                        product = editingTarget,
+                                        name = productName,
+                                        tag = selectedTag,
+                                        imageUri = imageUri,
+                                        startTimeMillis = startTimeMillis
+                                    )
+                                } else {
+                                    viewModel.addProduct(productName, selectedTag, imageUri, startTimeMillis)
+                                }
+                            }
+                        )
                     }
                 }
             }
         }
-    }
-
-    if (uiState.isAddDialogOpen) {
-        AddProductDialog(
-            availableTags = uiState.userSettings.allAvailableTags,
-            onCreateCustomTag = { newTag ->
-                viewModel.addCustomTag(newTag)
-            },
-            onDismiss = { viewModel.closeAddDialog() },
-            onConfirmAdd = { productName, selectedTag, imageUri, startTimeMillis ->
-                viewModel.addProduct(productName, selectedTag, imageUri, startTimeMillis)
-            }
-        )
     }
 }
 
@@ -714,6 +849,7 @@ private fun ProductItemCard(
     countStartAsDayOne: Boolean,
     onStopClick: () -> Unit,
     onRestartClick: () -> Unit,
+    onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     val daysUsed = product.elapsedDaysCount(nowMillis, countStartAsDayOne)
@@ -736,18 +872,19 @@ private fun ProductItemCard(
             .testTag("product_card_${product.id}")
     ) {
         if (productBitmap != null) {
-            val imageSquareSize = 96.dp
+            val imageSquareSize = 104.dp
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(vertical = 22.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Left Side: 1:1 Square product photo with top-right circular tag badge
                 Box(
                     modifier = Modifier
+                        .padding(top = 4.dp, end = 4.dp)
                         .size(imageSquareSize)
                         .testTag("product_image_container_${product.id}")
                 ) {
@@ -771,7 +908,7 @@ private fun ProductItemCard(
                             color = MaterialTheme.colorScheme.primary,
                             border = BorderStroke(1.8.dp, MaterialTheme.colorScheme.background),
                             modifier = Modifier
-                                .size(24.dp)
+                                .size(26.dp)
                                 .align(Alignment.TopEnd)
                                 .offset(x = 5.dp, y = (-5).dp)
                                 .testTag("product_tag_icon_${product.id}")
@@ -784,19 +921,17 @@ private fun ProductItemCard(
                                     painter = painterResource(id = resolveTagIconRes(product.tag)),
                                     contentDescription = product.tag,
                                     tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                         }
                     }
                 }
 
-                // Right Side: Matches the square image height, bringing the buttons up flush with the bottom of the square
+                // Right Side: Spacious layout matching the default card's breathing room
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(imageSquareSize),
-                    verticalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -806,12 +941,12 @@ private fun ProductItemCard(
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(end = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                .padding(end = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
                                     text = product.name,
@@ -852,7 +987,7 @@ private fun ProductItemCard(
                             days = daysUsed,
                             isActive = product.isActive,
                             productId = product.id,
-                            topPadding = 0.dp
+                            topPadding = 2.dp
                         )
                     }
 
@@ -866,18 +1001,34 @@ private fun ProductItemCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             IconButton(
+                                onClick = onEditClick,
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("edit_product_button_${product.id}")
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_ms_rounded_edit),
+                                    contentDescription = "Edit product",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            IconButton(
                                 onClick = onDeleteClick,
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .minimumInteractiveComponentSize()
                                     .testTag("delete_product_button_${product.id}")
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_ms_rounded_delete),
                                     contentDescription = stringResource(R.string.btn_delete_product),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(19.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
+
+                            Spacer(modifier = Modifier.width(4.dp))
 
                             if (product.isActive) {
                                 Button(
@@ -887,9 +1038,9 @@ private fun ProductItemCard(
                                         containerColor = MaterialTheme.colorScheme.primary,
                                         contentColor = MaterialTheme.colorScheme.onPrimary
                                     ),
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                                     modifier = Modifier
-                                        .height(38.dp)
+                                        .minimumInteractiveComponentSize()
                                         .testTag("stop_timer_button_${product.id}")
                                 ) {
                                     Icon(
@@ -897,7 +1048,7 @@ private fun ProductItemCard(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = stringResource(R.string.btn_stop_timer),
                                         style = MaterialTheme.typography.labelLarge
@@ -911,17 +1062,17 @@ private fun ProductItemCard(
                                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                     ),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
                                     modifier = Modifier
-                                        .height(38.dp)
+                                        .minimumInteractiveComponentSize()
                                         .testTag("restart_product_button_${product.id}")
                                 ) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_ms_rounded_refresh),
                                         contentDescription = null,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = stringResource(R.string.btn_restart_product),
                                         style = MaterialTheme.typography.labelLarge
@@ -936,8 +1087,8 @@ private fun ProductItemCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(vertical = 22.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 // Top Row: Tag Icon + Name + Category Tag + Date on Left, Days Used Hero Counter on Right
                 Row(
@@ -948,7 +1099,7 @@ private fun ProductItemCard(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(end = 12.dp),
+                            .padding(end = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         if (!product.tag.isNullOrBlank()) {
@@ -957,14 +1108,14 @@ private fun ProductItemCard(
                                 contentDescription = product.tag,
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(44.dp)
                                     .testTag("product_tag_icon_${product.id}")
                             )
                         }
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
                                 text = product.name,
@@ -1003,7 +1154,7 @@ private fun ProductItemCard(
                         days = daysUsed,
                         isActive = product.isActive,
                         productId = product.id,
-                        topPadding = 12.dp
+                        topPadding = 16.dp
                     )
                 }
 
@@ -1018,18 +1169,34 @@ private fun ProductItemCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         IconButton(
+                            onClick = onEditClick,
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("edit_product_button_${product.id}")
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_ms_rounded_edit),
+                                contentDescription = "Edit product",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        IconButton(
                             onClick = onDeleteClick,
                             modifier = Modifier
-                                .size(38.dp)
+                                .minimumInteractiveComponentSize()
                                 .testTag("delete_product_button_${product.id}")
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_ms_rounded_delete),
                                 contentDescription = stringResource(R.string.btn_delete_product),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
+
+                        Spacer(modifier = Modifier.width(4.dp))
 
                         if (product.isActive) {
                             Button(
@@ -1039,9 +1206,9 @@ private fun ProductItemCard(
                                     containerColor = MaterialTheme.colorScheme.primary,
                                     contentColor = MaterialTheme.colorScheme.onPrimary
                                 ),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                                 modifier = Modifier
-                                    .height(38.dp)
+                                    .minimumInteractiveComponentSize()
                                     .testTag("stop_timer_button_${product.id}")
                             ) {
                                 Icon(
@@ -1049,7 +1216,7 @@ private fun ProductItemCard(
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(R.string.btn_stop_timer),
                                     style = MaterialTheme.typography.labelLarge
@@ -1063,17 +1230,17 @@ private fun ProductItemCard(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
                                 modifier = Modifier
-                                    .height(38.dp)
+                                    .minimumInteractiveComponentSize()
                                     .testTag("restart_product_button_${product.id}")
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_ms_rounded_refresh),
                                     contentDescription = null,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(R.string.btn_restart_product),
                                     style = MaterialTheme.typography.labelLarge
@@ -1349,19 +1516,40 @@ private fun MonochromeBottlesIllustration(
 @Composable
 private fun AddProductDialog(
     availableTags: List<String>,
+    initialProduct: ProductEntry? = null,
     onCreateCustomTag: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirmAdd: (String, String?, String?, Long?) -> Unit
 ) {
     val context = LocalContext.current
-    var productName by rememberSaveable { mutableStateOf("") }
-    var selectedTag by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedImagePath by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedStartDateMillis by rememberSaveable { mutableStateOf<Long?>(null) }
-    var isDatePickerOpen by rememberSaveable { mutableStateOf(false) }
-    var showError by rememberSaveable { mutableStateOf(false) }
-    var isCreatingCustomTag by rememberSaveable { mutableStateOf(false) }
-    var customTagInput by rememberSaveable { mutableStateOf("") }
+    val isEditing = initialProduct != null
+    val initialStartDateOverride = remember(initialProduct?.id, initialProduct?.startTimeMillis) {
+        initialProduct?.startTimeMillis?.let { startMillis ->
+            val startCal = Calendar.getInstance().apply { timeInMillis = startMillis }
+            val todayCal = Calendar.getInstance()
+            val isSameDayAsToday =
+                startCal.get(Calendar.YEAR) == todayCal.get(Calendar.YEAR) &&
+                    startCal.get(Calendar.MONTH) == todayCal.get(Calendar.MONTH) &&
+                    startCal.get(Calendar.DAY_OF_MONTH) == todayCal.get(Calendar.DAY_OF_MONTH)
+            if (isSameDayAsToday) null else startMillis
+        }
+    }
+    var productName by rememberSaveable(initialProduct?.id) {
+        mutableStateOf(initialProduct?.name ?: "")
+    }
+    var selectedTag by rememberSaveable(initialProduct?.id) {
+        mutableStateOf<String?>(initialProduct?.tag)
+    }
+    var selectedImagePath by rememberSaveable(initialProduct?.id) {
+        mutableStateOf<String?>(initialProduct?.imageUri)
+    }
+    var selectedStartDateMillis by rememberSaveable(initialProduct?.id) {
+        mutableStateOf<Long?>(initialStartDateOverride)
+    }
+    var isDatePickerOpen by rememberSaveable(initialProduct?.id) { mutableStateOf(false) }
+    var showError by rememberSaveable(initialProduct?.id) { mutableStateOf(false) }
+    var isCreatingCustomTag by rememberSaveable(initialProduct?.id) { mutableStateOf(false) }
+    var customTagInput by rememberSaveable(initialProduct?.id) { mutableStateOf("") }
 
     val formattedSelectedDate = remember(selectedStartDateMillis) {
         selectedStartDateMillis?.let { millis ->
@@ -1513,492 +1701,571 @@ private fun AddProductDialog(
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(12.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = stringResource(R.string.dialog_add_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(R.string.dialog_add_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        text = {
+    BackHandler(onBack = onDismiss)
+
+    val safeInsets = WindowInsets.safeDrawing
+    val density = LocalDensity.current
+    val topStatusInsetDp = with(density) { safeInsets.getTop(density).toDp() }
+    val bottomNavInsetDp = with(density) { safeInsets.getBottom(density).toDp() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = topStatusInsetDp + 16.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 640.dp)
+                .testTag("add_product_sheet_page"),
+            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+            color = MaterialTheme.colorScheme.background,
+            tonalElevation = 0.dp
+        ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .fillMaxSize()
+                    .padding(bottom = bottomNavInsetDp)
             ) {
-                OutlinedTextField(
-                    value = productName,
-                    onValueChange = {
-                        productName = it
-                        if (showError && it.trim().isNotEmpty()) {
-                            showError = false
-                        }
-                    },
-                    label = {
-                        Text(text = stringResource(R.string.input_product_name_label))
-                    },
-                    placeholder = {
-                        Text(text = stringResource(R.string.input_product_name_placeholder))
-                    },
-                    isError = showError,
-                    supportingText = if (showError) {
-                        {
-                            Text(
-                                text = stringResource(R.string.error_empty_name),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    } else null,
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    ),
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Words,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { submitProduct() }
-                    ),
+                // Top Center Downward Chevron Header (supports both tap and downward swipe to dismiss)
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("product_name_input")
-                )
+                        .pointerInput(onDismiss) {
+                            var dragAccumulator = 0f
+                            detectVerticalDragGestures(
+                                onDragStart = { dragAccumulator = 0f },
+                                onVerticalDrag = { _, dragAmount ->
+                                    dragAccumulator += dragAmount
+                                    if (dragAccumulator > 70f) {
+                                        dragAccumulator = 0f
+                                        onDismiss()
+                                    }
+                                }
+                            )
+                        }
+                        .padding(top = 8.dp, bottom = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .minimumInteractiveComponentSize()
+                            .testTag("cancel_add_product_button")
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_ms_rounded_keyboard_arrow_down),
+                            contentDescription = stringResource(R.string.btn_cancel),
+                            tint = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.requiredSize(38.dp)
+                        )
+                    }
+                }
 
-                // Start Date Selector (Today or Previous Date)
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Start date",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                // Scrollable Sheet Content
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(22.dp)
+                ) {
+                    // Two-line Bold Heading matching Image 2 ("Start tracking a\nProduct")
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = if (isEditing) "Edit\nProduct" else "Start tracking a\nProduct",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontSize = 40.sp,
+                                lineHeight = 45.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = (-0.6).sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEditing) {
+                                "Update product details, photo, tag, or start date."
+                            } else {
+                                stringResource(R.string.dialog_add_subtitle)
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = productName,
+                        onValueChange = {
+                            productName = it
+                            if (showError && it.trim().isNotEmpty()) {
+                                showError = false
+                            }
+                        },
+                        label = {
+                            Text(text = stringResource(R.string.input_product_name_label))
+                        },
+                        placeholder = {
+                            Text(text = stringResource(R.string.input_product_name_placeholder))
+                        },
+                        isError = showError,
+                        supportingText = if (showError) {
+                            {
+                                Text(
+                                    text = stringResource(R.string.error_empty_name),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        } else null,
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            focusedContainerColor = MaterialTheme.colorScheme.background,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.background
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { submitProduct() }
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("product_name_input")
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val isTodaySelected = selectedStartDateMillis == null
+                    // Start Date Selector (Today or Previous Date)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Start date",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                        Surface(
-                            onClick = { selectedStartDateMillis = null },
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (isTodaySelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                Color.Transparent
-                            },
-                            border = BorderStroke(
-                                width = 1.dp,
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val isTodaySelected = selectedStartDateMillis == null
+
+                            Surface(
+                                onClick = { selectedStartDateMillis = null },
+                                shape = RoundedCornerShape(10.dp),
                                 color = if (isTodaySelected) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
-                                    MaterialTheme.colorScheme.outline
-                                }
-                            ),
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("start_date_today_button")
-                        ) {
-                            Text(
-                                text = "Today",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (isTodaySelected) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
+                                    MaterialTheme.colorScheme.background
                                 },
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                            )
-                        }
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isTodaySelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outline
+                                    }
+                                ),
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("start_date_today_button")
+                            ) {
+                                Text(
+                                    text = "Today",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (isTodaySelected) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                                )
+                            }
 
-                        Surface(
-                            onClick = { isDatePickerOpen = true },
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (!isTodaySelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                Color.Transparent
-                            },
-                            border = BorderStroke(
-                                width = 1.dp,
+                            Surface(
+                                onClick = { isDatePickerOpen = true },
+                                shape = RoundedCornerShape(10.dp),
                                 color = if (!isTodaySelected) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
-                                    MaterialTheme.colorScheme.outline
-                                }
-                            ),
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("start_date_picker_button")
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_ms_rounded_calendar_today),
-                                    contentDescription = null,
-                                    tint = if (!isTodaySelected) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    },
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = formattedSelectedDate ?: "Previous Date",
-                                    style = MaterialTheme.typography.labelLarge,
+                                    MaterialTheme.colorScheme.background
+                                },
+                                border = BorderStroke(
+                                    width = 1.dp,
                                     color = if (!isTodaySelected) {
-                                        MaterialTheme.colorScheme.onPrimary
+                                        MaterialTheme.colorScheme.primary
                                     } else {
-                                        MaterialTheme.colorScheme.onSurface
+                                        MaterialTheme.colorScheme.outline
                                     }
-                                )
+                                ),
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("start_date_picker_button")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_ms_rounded_calendar_today),
+                                        contentDescription = null,
+                                        tint = if (!isTodaySelected) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = formattedSelectedDate ?: "Previous Date",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = if (!isTodaySelected) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                // Optional Product Photo Picker
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Product photo (optional)",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    // Optional Product Photo Picker
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Product photo (optional)",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                    if (previewBitmap != null) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(top = 4.dp, end = 4.dp)
-                                    .size(56.dp)
+                        if (previewBitmap != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                Image(
-                                    bitmap = previewBitmap,
-                                    contentDescription = "Selected product photo",
-                                    contentScale = ContentScale.Crop,
+                                Box(
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(
-                                            width = 0.8.dp,
-                                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                )
-                                val currentTag = selectedTag
-                                if (!currentTag.isNullOrBlank()) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.surface),
+                                        .padding(top = 4.dp, end = 4.dp)
+                                        .size(64.dp)
+                                ) {
+                                    Image(
+                                        bitmap = previewBitmap,
+                                        contentDescription = "Selected product photo",
+                                        contentScale = ContentScale.Crop,
                                         modifier = Modifier
-                                            .size(22.dp)
-                                            .align(Alignment.TopEnd)
-                                            .offset(x = 6.dp, y = (-6).dp)
-                                    ) {
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier.fillMaxSize()
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = resolveTagIconRes(currentTag)),
-                                                contentDescription = currentTag,
-                                                tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.size(13.dp)
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(
+                                                width = 0.8.dp,
+                                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                                shape = RoundedCornerShape(12.dp)
                                             )
+                                    )
+                                    val currentTag = selectedTag
+                                    if (!currentTag.isNullOrBlank()) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.surface),
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .align(Alignment.TopEnd)
+                                                .offset(x = 6.dp, y = (-6).dp)
+                                        ) {
+                                            Box(
+                                                contentAlignment = Alignment.Center,
+                                                modifier = Modifier.fillMaxSize()
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = resolveTagIconRes(currentTag)),
+                                                    contentDescription = currentTag,
+                                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    onClick = {
-                                        photoPickerLauncher.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        onClick = {
+                                            photoPickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.background,
+                                        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline),
+                                        modifier = Modifier
+                                            .minimumInteractiveComponentSize()
+                                            .testTag("change_product_photo_button")
+                                    ) {
+                                        Text(
+                                            text = "Change",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                                         )
-                                    },
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline),
-                                    modifier = Modifier
-                                        .minimumInteractiveComponentSize()
-                                        .testTag("change_product_photo_button")
-                                ) {
-                                    Text(
-                                        text = "Change",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                                    )
-                                }
+                                    }
 
-                                TextButton(
-                                    onClick = { selectedImagePath = null },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier
-                                        .minimumInteractiveComponentSize()
-                                        .testTag("remove_product_photo_button")
-                                ) {
-                                    Text(
-                                        text = "Remove",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    TextButton(
+                                        onClick = { selectedImagePath = null },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .minimumInteractiveComponentSize()
+                                            .testTag("remove_product_photo_button")
+                                    ) {
+                                        Text(
+                                            text = "Remove",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    } else {
-                        Surface(
-                            onClick = {
-                                photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color.Transparent,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("pick_product_photo_button")
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_ms_rounded_add),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Text(
-                                    text = "Add Photo (Optional)",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = stringResource(R.string.quick_pick_label),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        availableTags.forEach { tag ->
-                            val isSelected = selectedTag?.equals(tag, ignoreCase = true) == true
-
-                            SuggestionChip(
+                        } else {
+                            Surface(
                                 onClick = {
-                                    selectedTag = if (isSelected) null else tag
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = if (isSelected) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    },
-                                    labelColor = if (isSelected) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    },
-                                    iconContentColor = if (isSelected) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
-                                ),
-                                border = null,
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(id = resolveTagIconRes(tag)),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        text = tag,
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                },
-                                modifier = Modifier.testTag("tag_chip_${tag.lowercase().replace(" ", "_")}")
-                            )
-                        }
-                    }
-
-                    // Bottom option to create a custom tag
-                    if (isCreatingCustomTag) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = customTagInput,
-                                onValueChange = { customTagInput = it },
-                                label = {
-                                    Text(text = stringResource(R.string.input_custom_tag_label))
-                                },
-                                placeholder = {
-                                    Text(text = stringResource(R.string.input_custom_tag_placeholder))
-                                },
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                                ),
-                                keyboardOptions = KeyboardOptions(
-                                    capitalization = KeyboardCapitalization.Words,
-                                    imeAction = ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = { submitCustomTag() }
-                                ),
+                                color = MaterialTheme.colorScheme.background,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("custom_tag_input")
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("pick_product_photo_button")
                             ) {
-                                TextButton(
-                                    onClick = {
-                                        isCreatingCustomTag = false
-                                        customTagInput = ""
-                                    },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.minimumInteractiveComponentSize()
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(
-                                        text = stringResource(R.string.btn_cancel),
-                                        style = MaterialTheme.typography.labelLarge
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_ms_rounded_add),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                }
-                                Spacer(modifier = Modifier.width(6.dp))
-                                FilledTonalButton(
-                                    onClick = submitCustomTag,
-                                    enabled = customTagInput.trim().isNotEmpty(),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.filledTonalButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                    ),
-                                    modifier = Modifier
-                                        .minimumInteractiveComponentSize()
-                                        .testTag("confirm_custom_tag_button")
-                                ) {
                                     Text(
-                                        text = stringResource(R.string.btn_add_custom_tag),
-                                        style = MaterialTheme.typography.labelLarge
+                                        text = "Add Photo (Optional)",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
                         }
-                    } else {
-                        Surface(
-                            onClick = { isCreatingCustomTag = true },
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color.Transparent,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                            modifier = Modifier
-                                .padding(top = 4.dp)
-                                .minimumInteractiveComponentSize()
-                                .testTag("create_custom_tag_button")
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = stringResource(R.string.quick_pick_label),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.btn_create_custom_tag),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
+                            availableTags.forEach { tag ->
+                                val isSelected = selectedTag?.equals(tag, ignoreCase = true) == true
+
+                                SuggestionChip(
+                                    onClick = {
+                                        selectedTag = if (isSelected) null else tag
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = SuggestionChipDefaults.suggestionChipColors(
+                                        containerColor = if (isSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.background
+                                        },
+                                        labelColor = if (isSelected) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
+                                        iconContentColor = if (isSelected) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                    ),
+                                    border = BorderStroke(
+                                        width = 0.8.dp,
+                                        color = if (isSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+                                        }
+                                    ),
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(id = resolveTagIconRes(tag)),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = tag,
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    },
+                                    modifier = Modifier.testTag("tag_chip_${tag.lowercase().replace(" ", "_")}")
                                 )
                             }
                         }
+
+                        // Bottom option to create a custom tag
+                        if (isCreatingCustomTag) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = customTagInput,
+                                    onValueChange = { customTagInput = it },
+                                    label = {
+                                        Text(text = stringResource(R.string.input_custom_tag_label))
+                                    },
+                                    placeholder = {
+                                        Text(text = stringResource(R.string.input_custom_tag_placeholder))
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                        focusedContainerColor = MaterialTheme.colorScheme.background,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.background
+                                    ),
+                                    keyboardOptions = KeyboardOptions(
+                                        capitalization = KeyboardCapitalization.Words,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = { submitCustomTag() }
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("custom_tag_input")
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            isCreatingCustomTag = false
+                                            customTagInput = ""
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.minimumInteractiveComponentSize()
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.btn_cancel),
+                                            style = MaterialTheme.typography.labelLarge
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    FilledTonalButton(
+                                        onClick = submitCustomTag,
+                                        enabled = customTagInput.trim().isNotEmpty(),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        ),
+                                        modifier = Modifier
+                                            .minimumInteractiveComponentSize()
+                                            .testTag("confirm_custom_tag_button")
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.btn_add_custom_tag),
+                                            style = MaterialTheme.typography.labelLarge
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Surface(
+                                onClick = { isCreatingCustomTag = true },
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.background,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("create_custom_tag_button")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.btn_create_custom_tag),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Bottom Sticky Action Bar inside the Second Page
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                ) {
+                    Button(
+                        onClick = submitProduct,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .minimumInteractiveComponentSize()
+                            .testTag("confirm_start_timer_button")
+                    ) {
+                        Text(
+                            text = if (isEditing) "Save Changes" else stringResource(R.string.btn_start_timer),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = submitProduct,
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
-                modifier = Modifier
-                    .minimumInteractiveComponentSize()
-                    .testTag("confirm_start_timer_button")
-            ) {
-                Text(
-                    text = stringResource(R.string.btn_start_timer),
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .minimumInteractiveComponentSize()
-                    .testTag("cancel_add_product_button")
-            ) {
-                Text(
-                    text = stringResource(R.string.btn_cancel),
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
         }
-    )
+    }
 }
 
 private fun savePickedImageToInternalStorage(context: Context, uri: Uri): String? {

@@ -26,13 +26,13 @@ val RobotoFontFamily = FontFamily(
     Font(R.font.roboto, FontWeight.Normal)
 )
 
-val LibreFranklinFontFamily = FontFamily(
-    Font(R.font.roboto, FontWeight.Normal),
-    Font(R.font.libre_franklin_500, FontWeight.Medium),
-    Font(R.font.libre_franklin_600, FontWeight.SemiBold),
-    Font(R.font.libre_franklin_700, FontWeight.Bold),
-    Font(R.font.libre_franklin_800, FontWeight.ExtraBold),
-    Font(R.font.libre_franklin_900, FontWeight.Black)
+val OpenRundeFontFamily = FontFamily(
+    Font(R.font.openrunde_regular, FontWeight.Normal),
+    Font(R.font.openrunde_medium, FontWeight.Medium),
+    Font(R.font.openrunde_semibold, FontWeight.SemiBold),
+    Font(R.font.openrunde_bold, FontWeight.Bold),
+    Font(R.font.openrunde_bold, FontWeight.ExtraBold),
+    Font(R.font.openrunde_bold, FontWeight.Black)
 )
 
 val Typography = Typography(
@@ -44,7 +44,7 @@ val Typography = Typography(
         letterSpacing = (-0.8).sp
     ),
     displayMedium = TextStyle(
-        fontFamily = LibreFranklinFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.Black,
         fontSize = 36.sp,
         lineHeight = 40.sp,
@@ -58,27 +58,27 @@ val Typography = Typography(
         letterSpacing = (-0.8).sp
     ),
     headlineMedium = TextStyle(
-        fontFamily = LibreFranklinFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.Black,
         fontSize = 26.sp,
         lineHeight = 32.sp,
         letterSpacing = (-0.3).sp
     ),
     titleLarge = TextStyle(
-        fontFamily = LibreFranklinFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.ExtraBold,
         fontSize = 21.sp,
         lineHeight = 27.sp,
         letterSpacing = (-0.2).sp
     ),
     titleMedium = TextStyle(
-        fontFamily = LibreFranklinFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 17.sp,
         lineHeight = 23.sp
     ),
     titleSmall = TextStyle(
-        fontFamily = LibreFranklinFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 15.sp,
         lineHeight = 20.sp
@@ -102,14 +102,14 @@ val Typography = Typography(
         lineHeight = 16.sp
     ),
     labelLarge = TextStyle(
-        fontFamily = LibreFranklinFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp
     ),
     labelMedium = TextStyle(
-        fontFamily = LibreFranklinFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 12.sp,
         lineHeight = 16.sp,

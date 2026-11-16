@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -562,8 +563,8 @@ fun SettingsScreen(
                                     .size(48.dp)
                                     .align(Alignment.TopStart)
                                     .offset(
-                                        x = (-10).dp,
-                                        y = lerp(0.dp, (-48).dp, collapseFraction)
+                                        x = (-12).dp,
+                                        y = lerp((-6).dp, (-48).dp, collapseFraction)
                                     )
                                     .alpha(backButtonAlpha)
                                     .testTag("settings_back_button")
@@ -572,7 +573,7 @@ fun SettingsScreen(
                                     painter = painterResource(id = R.drawable.ic_ms_rounded_arrow_back),
                                     contentDescription = "Back",
                                     tint = MaterialTheme.colorScheme.onBackground,
-                                    modifier = Modifier.size(26.dp)
+                                    modifier = Modifier.requiredSize(38.dp)
                                 )
                             }
                         }

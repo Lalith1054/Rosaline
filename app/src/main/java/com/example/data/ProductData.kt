@@ -257,6 +257,28 @@ class ProductRepository(private val productDao: ProductDao) {
         productDao.updateProduct(updated)
     }
 
+    suspend fun updateProductDetails(
+        product: ProductEntry,
+        name: String,
+        startTimeMillis: Long,
+        tag: String?,
+        imageUri: String?
+    ) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        val cleanedTag = tag?.trim()?.takeIf { it.isNotEmpty() }
+        val cleanedImage = imageUri?.trim()?.takeIf { it.isNotEmpty() }
+        val adjustedEnd = product.endTimeMillis?.let { max(startTimeMillis, it) }
+        val updated = product.copy(
+            name = trimmed,
+            startTimeMillis = startTimeMillis,
+            endTimeMillis = adjustedEnd,
+            tag = cleanedTag,
+            imageUri = cleanedImage
+        )
+        productDao.updateProduct(updated)
+    }
+
     suspend fun deleteProduct(id: Long) {
         productDao.deleteProductById(id)
     }
