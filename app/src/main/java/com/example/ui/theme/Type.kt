@@ -8,22 +8,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.R
 
-val NewsreaderMaxBoldFontFamily = FontFamily(
-    Font(R.font.newsreader_800, FontWeight.Normal),
-    Font(R.font.newsreader_800, FontWeight.Bold),
-    Font(R.font.newsreader_800, FontWeight.ExtraBold),
-    Font(R.font.newsreader_800, FontWeight.Black)
-)
-
 val NewsreaderFontFamily = FontFamily(
     Font(R.font.newsreader, FontWeight.Normal),
     Font(R.font.newsreader, FontWeight.Medium),
     Font(R.font.newsreader_700, FontWeight.Bold),
     Font(R.font.newsreader_800, FontWeight.ExtraBold)
-)
-
-val RobotoFontFamily = FontFamily(
-    Font(R.font.roboto, FontWeight.Normal)
 )
 
 val OpenRundeFontFamily = FontFamily(
@@ -37,10 +26,10 @@ val OpenRundeFontFamily = FontFamily(
 
 val Typography = Typography(
     displayLarge = TextStyle(
-        fontFamily = NewsreaderMaxBoldFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.Black,
-        fontSize = 48.sp,
-        lineHeight = 52.sp,
+        fontSize = 46.sp,
+        lineHeight = 50.sp,
         letterSpacing = (-0.8).sp
     ),
     displayMedium = TextStyle(
@@ -51,10 +40,10 @@ val Typography = Typography(
         letterSpacing = (-0.6).sp
     ),
     headlineLarge = TextStyle(
-        fontFamily = NewsreaderMaxBoldFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.Black,
-        fontSize = 48.sp,
-        lineHeight = 52.sp,
+        fontSize = 46.sp,
+        lineHeight = 50.sp,
         letterSpacing = (-0.8).sp
     ),
     headlineMedium = TextStyle(
@@ -84,19 +73,19 @@ val Typography = Typography(
         lineHeight = 20.sp
     ),
     bodyLarge = TextStyle(
-        fontFamily = RobotoFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 15.sp,
         lineHeight = 22.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = RobotoFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp
     ),
     bodySmall = TextStyle(
-        fontFamily = RobotoFontFamily,
+        fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp
@@ -112,6 +101,13 @@ val Typography = Typography(
         fontFamily = OpenRundeFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.2.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = OpenRundeFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.2.sp
     )

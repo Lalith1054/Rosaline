@@ -16,8 +16,8 @@ android {
     applicationId = "com.aistudio.lastdrop.xkqpmz"
     minSdk = 24
     targetSdk = 36
-    versionCode = 6
-    versionName = "1.4.0"
+    versionCode = 7
+    versionName = "1.5.0"
 
     val githubRepo = (System.getenv("GITHUB_REPOSITORY") ?: "").replace("\"", "")
     val githubRunNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "").replace("\"", "")

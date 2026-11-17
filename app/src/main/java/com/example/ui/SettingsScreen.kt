@@ -101,6 +101,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.ui.graphics.Shape
+
 @Composable
 fun SettingsScreen(
     settings: UserSettings,
@@ -132,6 +135,26 @@ fun SettingsScreen(
 
     val finishedCount = allProducts.count { !it.isActive }
 
+    val seamBackgroundColor = if (settings.darkModeEnabled) {
+        Color(0xFF000000)
+    } else {
+        when (settings.selectedTheme) {
+            AppThemeOption.CLASSIC_WHITE -> Color(0xFFF3F4F6)
+            AppThemeOption.CHOCOLATE_MILKSHAKE -> Color(0xFFEBE0D3)
+            AppThemeOption.BREAD_OMELETTE -> Color(0xFFF5ECCB)
+        }
+    }
+
+    val cardSurfaceColor = if (settings.darkModeEnabled) {
+        Color(0xFF141518)
+    } else {
+        when (settings.selectedTheme) {
+            AppThemeOption.CLASSIC_WHITE -> Color(0xFFFFFFFF)
+            AppThemeOption.CHOCOLATE_MILKSHAKE -> Color(0xFFF7EFE6)
+            AppThemeOption.BREAD_OMELETTE -> Color(0xFFFFFAEA)
+        }
+    }
+
     fun performUpdateCheck(repoToCheck: String) {
         if (isCheckingUpdates) return
         isCheckingUpdates = true
@@ -161,7 +184,7 @@ fun SettingsScreen(
             .fillMaxSize()
             .testTag("settings_screen"),
         contentWindowInsets = WindowInsets.safeDrawing,
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = seamBackgroundColor,
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState)
         }
@@ -180,18 +203,11 @@ fun SettingsScreen(
                 }
             }
         }
-        val isScrolled by remember {
-            derivedStateOf {
-                listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 4
-            }
-        }
-        val contentGraphicsLayer = rememberGraphicsLayer()
-        val headerBlurLayer = rememberGraphicsLayer()
-        val bgColor = MaterialTheme.colorScheme.background
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(seamBackgroundColor)
                 .padding(bottom = innerPadding.calculateBottomPadding()),
             contentAlignment = Alignment.TopCenter
         ) {
@@ -202,346 +218,292 @@ fun SettingsScreen(
             ) {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .drawWithContent {
-                            contentGraphicsLayer.record {
-                                drawRect(bgColor)
-                                this@drawWithContent.drawContent()
-                            }
-                            drawLayer(contentGraphicsLayer)
-                        },
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        start = 20.dp,
-                        end = 20.dp,
-                        top = innerPadding.calculateTopPadding() + 76.dp,
-                        bottom = 64.dp
+                        start = 0.dp,
+                        end = 0.dp,
+                        top = innerPadding.calculateTopPadding() + 84.dp,
+                        bottom = 32.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     item(key = "header_expand_spacer") {
                         Spacer(modifier = Modifier.height(expandRangeDp))
                     }
 
-                // Section: Themes (Dark Mode switch + Classic White, A Certain Chocolate Milkshake, The Usual Bread Omelette)
-                item(key = "section_themes") {
-                    SettingsSectionTitle(title = "THEMES")
-                    SettingsToggleRow(
-                        iconRes = R.drawable.ic_ms_rounded_dark_mode,
-                        title = "Dark Mode",
-                        subtitle = "Switch to a sleek dark surface palette",
-                        checked = settings.darkModeEnabled,
-                        onCheckedChange = onToggleDarkMode,
-                        testTag = "toggle_dark_mode"
-                    )
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    ThemeSelectorRow(
-                        selectedTheme = settings.selectedTheme,
-                        darkModeEnabled = settings.darkModeEnabled,
-                        onSelectTheme = onSelectTheme
-                    )
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                // Section: Display Preferences
-                item(key = "section_preferences") {
-                    SettingsSectionTitle(
-                        title = "DISPLAY",
-                        modifier = Modifier.padding(top = 28.dp)
-                    )
-                }
-
-                item(key = "pref_day_one") {
-                    SettingsToggleRow(
-                        iconRes = R.drawable.ic_ms_rounded_calendar_today,
-                        title = "Count start day as Day 1",
-                        subtitle = "New products start at 1 day used instead of 0 days on the first day",
-                        checked = settings.countStartDayAsDayOne,
-                        onCheckedChange = onToggleCountDayOne,
-                        testTag = "toggle_count_day_one"
-                    )
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                // Section: Data & History Management
-                item(key = "section_data") {
-                    SettingsSectionTitle(
-                        title = "DATA & HISTORY",
-                        modifier = Modifier.padding(top = 28.dp)
-                    )
-                }
-
-                item(key = "action_export") {
-                    SettingsActionRow(
-                        iconRes = R.drawable.ic_ms_rounded_ios_share,
-                        title = "Export product log",
-                        subtitle = if (allProducts.isEmpty()) {
-                            "No tracked products to export yet"
-                        } else {
-                            "Share a summary of all ${allProducts.size} tracked products"
-                        },
-                        buttonLabel = "Export",
-                        enabled = allProducts.isNotEmpty(),
-                        onClick = {
-                            val exportText = buildExportSummary(
-                                products = allProducts,
-                                nowMillis = nowMillis,
-                                countStartAsDayOne = settings.countStartDayAsDayOne
+                    // Card 1: Dark Mode (Appearance)
+                    item(key = "section_dark_mode") {
+                        EdgeToEdgeSettingsCard(cardColor = cardSurfaceColor) {
+                            SettingsCardHeader(
+                                iconRes = R.drawable.ic_ms_rounded_dark_mode,
+                                title = "Appearance"
                             )
-                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "Rosaline Product Lifespan Log")
-                                putExtra(Intent.EXTRA_TEXT, exportText)
-                            }
-                            val chooser = Intent.createChooser(sendIntent, "Export Product Log")
-                            runCatching { context.startActivity(chooser) }
-                        },
-                        testTag = "export_log_button"
-                    )
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                item(key = "action_clear_finished") {
-                    SettingsActionRow(
-                        iconRes = R.drawable.ic_ms_rounded_delete_sweep,
-                        title = "Clear finished products",
-                        subtitle = if (finishedCount == 0) {
-                            "No finished items in your list"
-                        } else {
-                            "Remove $finishedCount finished ${if (finishedCount == 1) "item" else "items"} while keeping active timers"
-                        },
-                        buttonLabel = "Clear",
-                        enabled = finishedCount > 0,
-                        onClick = { showClearFinishedDialog = true },
-                        testTag = "clear_finished_button"
-                    )
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                item(key = "action_reset_all") {
-                    SettingsActionRow(
-                        iconRes = R.drawable.ic_ms_rounded_delete,
-                        title = "Reset all product data",
-                        subtitle = if (allProducts.isEmpty()) {
-                            "Database is currently empty"
-                        } else {
-                            "Permanently delete all ${allProducts.size} active and finished items"
-                        },
-                        buttonLabel = "Reset",
-                        enabled = allProducts.isNotEmpty(),
-                        isDestructive = true,
-                        onClick = { showResetAllDialog = true },
-                        testTag = "reset_all_data_button"
-                    )
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                // Section: About
-                item(key = "section_about") {
-                    SettingsSectionTitle(
-                        title = "ABOUT",
-                        modifier = Modifier.padding(top = 28.dp)
-                    )
-                    SettingsActionRow(
-                        iconRes = R.drawable.ic_ms_rounded_refresh,
-                        title = "Check for updates",
-                        subtitle = if (isCheckingUpdates) {
-                            "Checking github.com/${settings.githubRepo}/releases for new builds…"
-                        } else {
-                            "Check GitHub Releases (${settings.githubRepo}) for a newer APK build"
-                        },
-                        buttonLabel = if (isCheckingUpdates) "Checking…" else "Check",
-                        enabled = !isCheckingUpdates,
-                        onClick = { performUpdateCheck(settings.githubRepo) },
-                        testTag = "check_updates_button"
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 14.dp, start = 36.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Surface(
-                            onClick = {
-                                repoConfigError = null
-                                showConfigureRepoDialog = true
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline),
-                            modifier = Modifier.testTag("set_release_repo_button")
-                        ) {
-                            Text(
-                                text = "Set Release Repo",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            SettingsToggleRow(
+                                iconRes = null,
+                                title = "Dark Mode",
+                                subtitle = "Switch to a sleek dark surface palette",
+                                checked = settings.darkModeEnabled,
+                                onCheckedChange = onToggleDarkMode,
+                                testTag = "toggle_dark_mode"
                             )
                         }
-                        Surface(
-                            onClick = {
-                                val repoSlug = UpdateChecker.parseRepoInput(settings.githubRepo)
-                                    .ifBlank { "lalith0918/Rosaline" }
-                                val url = "https://github.com/$repoSlug/releases"
-                                runCatching {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    }
+
+                    // Card 2: Background Atmosphere (Themes)
+                    item(key = "section_themes") {
+                        EdgeToEdgeSettingsCard(cardColor = cardSurfaceColor) {
+                            SettingsCardHeader(
+                                iconRes = R.drawable.ic_ms_rounded_palette,
+                                title = "Background Atmosphere"
+                            )
+                            ThemeSelectorRow(
+                                selectedTheme = settings.selectedTheme,
+                                darkModeEnabled = settings.darkModeEnabled,
+                                onSelectTheme = onSelectTheme
+                            )
+                        }
+                    }
+
+                    // Card 3: Display Preferences
+                    item(key = "pref_day_one") {
+                        EdgeToEdgeSettingsCard(cardColor = cardSurfaceColor) {
+                            SettingsCardHeader(
+                                iconRes = R.drawable.ic_ms_rounded_calendar_today,
+                                title = "Display"
+                            )
+                            SettingsToggleRow(
+                                iconRes = null,
+                                title = "Count start day as Day 1",
+                                subtitle = "New products start at 1 day used instead of 0 days on the first day",
+                                checked = settings.countStartDayAsDayOne,
+                                onCheckedChange = onToggleCountDayOne,
+                                testTag = "toggle_count_day_one"
+                            )
+                        }
+                    }
+
+                    // Card 4: Data & History Management
+                    item(key = "section_data") {
+                        EdgeToEdgeSettingsCard(cardColor = cardSurfaceColor) {
+                            SettingsCardHeader(
+                                iconRes = R.drawable.ic_ms_rounded_ios_share,
+                                title = "Data & History"
+                            )
+                            SettingsActionRow(
+                                iconRes = R.drawable.ic_ms_rounded_ios_share,
+                                title = "Export product log",
+                                subtitle = if (allProducts.isEmpty()) {
+                                    "No tracked products to export yet"
+                                } else {
+                                    "Share a summary of all ${allProducts.size} tracked products"
+                                },
+                                buttonLabel = "Export",
+                                enabled = allProducts.isNotEmpty(),
+                                onClick = {
+                                    val exportText = buildExportSummary(
+                                        products = allProducts,
+                                        nowMillis = nowMillis,
+                                        countStartAsDayOne = settings.countStartDayAsDayOne
+                                    )
+                                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "Rosaline Product Lifespan Log")
+                                        putExtra(Intent.EXTRA_TEXT, exportText)
+                                    }
+                                    val chooser = Intent.createChooser(sendIntent, "Export Product Log")
+                                    runCatching { context.startActivity(chooser) }
+                                },
+                                testTag = "export_log_button"
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 14.dp),
+                                thickness = 0.6.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)
+                            )
+                            SettingsActionRow(
+                                iconRes = R.drawable.ic_ms_rounded_delete_sweep,
+                                title = "Clear finished products",
+                                subtitle = if (finishedCount == 0) {
+                                    "No finished items in your list"
+                                } else {
+                                    "Remove $finishedCount finished ${if (finishedCount == 1) "item" else "items"} while keeping active timers"
+                                },
+                                buttonLabel = "Clear",
+                                enabled = finishedCount > 0,
+                                onClick = { showClearFinishedDialog = true },
+                                testTag = "clear_finished_button"
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 14.dp),
+                                thickness = 0.6.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)
+                            )
+                            SettingsActionRow(
+                                iconRes = R.drawable.ic_ms_rounded_delete,
+                                title = "Reset all product data",
+                                subtitle = if (allProducts.isEmpty()) {
+                                    "Database is currently empty"
+                                } else {
+                                    "Permanently delete all ${allProducts.size} active and finished items"
+                                },
+                                buttonLabel = "Reset",
+                                enabled = allProducts.isNotEmpty(),
+                                isDestructive = true,
+                                onClick = { showResetAllDialog = true },
+                                testTag = "reset_all_data_button"
+                            )
+                        }
+                    }
+
+                    // Card 5: About & Updates
+                    item(key = "section_about") {
+                        EdgeToEdgeSettingsCard(cardColor = cardSurfaceColor) {
+                            SettingsCardHeader(
+                                iconRes = R.drawable.ic_ms_rounded_info,
+                                title = "About"
+                            )
+                            SettingsActionRow(
+                                iconRes = R.drawable.ic_ms_rounded_refresh,
+                                title = "Check for updates",
+                                subtitle = if (isCheckingUpdates) {
+                                    "Checking github.com/${settings.githubRepo}/releases for new builds…"
+                                } else {
+                                    "Check GitHub Releases (${settings.githubRepo}) for a newer APK build"
+                                },
+                                buttonLabel = if (isCheckingUpdates) "Checking…" else "Check",
+                                enabled = !isCheckingUpdates,
+                                onClick = { performUpdateCheck(settings.githubRepo) },
+                                testTag = "check_updates_button"
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 12.dp, start = 36.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Surface(
+                                    onClick = {
+                                        repoConfigError = null
+                                        showConfigureRepoDialog = true
+                                    },
+                                    shape = RoundedCornerShape(50),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                                    modifier = Modifier.testTag("set_release_repo_button")
+                                ) {
+                                    Text(
+                                        text = "Set Release Repo",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
                                 }
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline),
-                            modifier = Modifier.testTag("open_releases_page_button")
+                                Surface(
+                                    onClick = {
+                                        val repoSlug = UpdateChecker.parseRepoInput(settings.githubRepo)
+                                            .ifBlank { "lalith0918/Rosaline" }
+                                        val url = "https://github.com/$repoSlug/releases"
+                                        runCatching {
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(50),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                                    modifier = Modifier.testTag("open_releases_page_button")
+                                ) {
+                                    Text(
+                                        text = "Open Release Page",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 16.dp),
+                                thickness = 0.6.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_ms_rounded_info),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    val versionLabel = if (BuildConfig.GITHUB_RUN_NUMBER.isNotBlank()) {
+                                        "Rosaline · Version ${BuildConfig.VERSION_NAME} (Build #${BuildConfig.GITHUB_RUN_NUMBER})"
+                                    } else {
+                                        "Rosaline · Version ${BuildConfig.VERSION_NAME}"
+                                    }
+                                    Text(
+                                        text = versionLabel,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "All product timers and logs are stored locally on your device.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Dedication Note at the bottom of the Settings page (directly on background colour, bold)
+                    item(key = "dedication_note") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 28.dp, bottom = 20.dp, start = 24.dp, end = 24.dp)
+                                .testTag("dedication_note"),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             Text(
-                                text = "Open Release Page",
-                                style = MaterialTheme.typography.labelMedium,
+                                text = "I created this little app especially for you, Ammu. It's my way of putting a little thought and care into the everyday things you do. Thank you for being a part of my life and making it all the more beautiful. I hope this little creation reminds you how much your presence means to me.",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontFamily = NewsreaderFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 19.sp,
+                                    lineHeight = 28.sp
+                                ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = "With love,\nAbi",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontFamily = NewsreaderFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 21.sp,
+                                    lineHeight = 27.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_ms_rounded_info),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            val versionLabel = if (BuildConfig.GITHUB_RUN_NUMBER.isNotBlank()) {
-                                "Rosaline · Version ${BuildConfig.VERSION_NAME} (Build #${BuildConfig.GITHUB_RUN_NUMBER})"
-                            } else {
-                                "Rosaline · Version ${BuildConfig.VERSION_NAME}"
-                            }
-                            Text(
-                                text = versionLabel,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "All product timers and logs are stored locally on your device.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
                 }
 
-                // Dedication Note at the bottom of the Settings page
-                item(key = "dedication_note") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 36.dp, bottom = 20.dp, start = 12.dp, end = 12.dp)
-                            .testTag("dedication_note"),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(
-                            text = "I created this little app especially for you, Ammu. It's my way of putting a little thought and care into the everyday things you do. Thank you for being a part of my life and making it all the more beautiful. I hope this little creation reminds you how much your presence means to me.",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontFamily = NewsreaderFontFamily,
-                                fontWeight = FontWeight.Normal,
-                                fontSize = 19.sp,
-                                lineHeight = 28.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            text = "With love,\nAbi",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontFamily = NewsreaderFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 21.sp,
-                                lineHeight = 27.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-                }
-
-                // Blurred sticky header overlay
-                Box(
+                // Edge-to-edge rounded bottom sticky header card matching reference image
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .align(Alignment.TopCenter)
+                        .align(Alignment.TopCenter),
+                    color = cardSurfaceColor,
+                    shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .background(bgColor)
-                            .clipToBounds()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .blur(
-                                    radius = 6.dp,
-                                    edgeTreatment = BlurredEdgeTreatment.Rectangle
-                                )
-                                .drawBehind {
-                                    val w = size.width.toInt()
-                                    val h = size.height.toInt()
-                                    if (w > 0 && h > 0) {
-                                        headerBlurLayer.record(size = IntSize(w, h)) {
-                                            drawRect(bgColor)
-                                            drawLayer(contentGraphicsLayer)
-                                        }
-                                        drawLayer(headerBlurLayer)
-                                    }
-                                }
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        0.0f to bgColor.copy(alpha = 0.34f),
-                                        0.75f to bgColor.copy(alpha = 0.28f),
-                                        1.0f to bgColor.copy(alpha = 0.22f)
-                                    )
-                                )
-                        )
-                    }
-
                     val backButtonAlpha = (1f - collapseFraction * 1.6f).coerceIn(0f, 1f)
 
                     Box(
@@ -549,9 +511,9 @@ fun SettingsScreen(
                             .fillMaxWidth()
                             .padding(
                                 top = innerPadding.calculateTopPadding() + lerp(36.dp, 14.dp, collapseFraction),
-                                bottom = lerp(16.dp, 10.dp, collapseFraction),
-                                start = 20.dp,
-                                end = 20.dp
+                                bottom = lerp(18.dp, 12.dp, collapseFraction),
+                                start = 22.dp,
+                                end = 22.dp
                             )
                             .height(lerp(116.dp, 48.dp, collapseFraction))
                     ) {
@@ -581,8 +543,8 @@ fun SettingsScreen(
                         Text(
                             text = "Settings.",
                             style = MaterialTheme.typography.headlineLarge.copy(
-                                fontSize = lerp(48.sp, 28.sp, collapseFraction),
-                                lineHeight = lerp(52.sp, 32.sp, collapseFraction)
+                                fontSize = lerp(46.sp, 28.sp, collapseFraction),
+                                lineHeight = lerp(50.sp, 32.sp, collapseFraction)
                             ),
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onBackground,
@@ -591,14 +553,6 @@ fun SettingsScreen(
                                 .align(Alignment.TopStart)
                                 .offset(y = lerp(60.dp, 8.dp, collapseFraction))
                                 .testTag("settings_heading")
-                        )
-                    }
-
-                    if (isScrolled) {
-                        HorizontalDivider(
-                            modifier = Modifier.align(Alignment.BottomCenter),
-                            thickness = 0.6.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.75f)
                         )
                     }
                 }
@@ -684,6 +638,52 @@ fun SettingsScreen(
     }
 }
 
+@Composable
+private fun EdgeToEdgeSettingsCard(
+    cardColor: Color,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(24.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 22.dp, vertical = 22.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = cardColor
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(contentPadding),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun SettingsCardHeader(
+    iconRes: Int,
+    title: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(
+            painter = painterResource(id = iconRes),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ThemeSelectorRow(
@@ -692,34 +692,15 @@ private fun ThemeSelectorRow(
     onSelectTheme: (AppThemeOption) -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 18.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_ms_rounded_palette),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(22.dp)
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "Background Atmosphere",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Choose your preferred light theme tone",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        Text(
+            text = "Choose your preferred light theme tone",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
 
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -736,18 +717,18 @@ private fun ThemeSelectorRow(
 
                 Surface(
                     onClick = { onSelectTheme(option) },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(50),
                     color = if (isSelected) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.surface
+                        MaterialTheme.colorScheme.surfaceVariant
                     },
                     border = BorderStroke(
                         width = 1.dp,
                         color = if (isSelected) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.outline
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
                         }
                     ),
                     modifier = Modifier
@@ -755,7 +736,7 @@ private fun ThemeSelectorRow(
                         .testTag("theme_option_${option.name.lowercase()}")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
@@ -790,24 +771,8 @@ private fun ThemeSelectorRow(
 }
 
 @Composable
-private fun SettingsSectionTitle(
-    title: String,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 8.dp)
-    )
-}
-
-@Composable
 private fun SettingsToggleRow(
-    iconRes: Int,
+    iconRes: Int?,
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -815,9 +780,7 @@ private fun SettingsToggleRow(
     testTag: String
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 18.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -828,18 +791,21 @@ private fun SettingsToggleRow(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Icon(
-                painter = painterResource(id = iconRes),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .padding(top = 2.dp)
-                    .size(22.dp)
-            )
+            if (iconRes != null) {
+                Icon(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .padding(top = 2.dp)
+                        .size(22.dp)
+                )
+            }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
@@ -877,9 +843,7 @@ private fun SettingsActionRow(
     testTag: String
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 18.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -902,6 +866,7 @@ private fun SettingsActionRow(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
